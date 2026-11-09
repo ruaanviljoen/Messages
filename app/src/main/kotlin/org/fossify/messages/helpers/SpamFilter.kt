@@ -1,12 +1,13 @@
 package org.fossify.messages.helpers
 
 import android.content.Context
+import android.provider.Telephony.Mms
+import android.provider.Telephony.Sms
 import org.fossify.commons.helpers.ContactLookupResult
 import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.messages.databases.SpamDatabase
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.deleteMessage
-import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.markMessageRead
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.extensions.moveMessageToRecycleBin
@@ -88,8 +89,10 @@ fun Context.getSpamDates(threadId: Long) =
 
 /**
  * [conversations] as the inbox shows them: without the ones whose messages are all in Spam, and with the newest message
- * that isn't spam as the snippet and date. Run it off the main thread.
+ * that isn't spam as the snippet and date. A conversation that can't be read is shown unchanged. Run it off the main
+ * thread.
  */
+@Suppress("TooGenericExceptionCaught", "SwallowedException")
 fun Context.withoutSpamOnly(conversations: List<Conversation>): ArrayList<Conversation> {
     val spam = spamDB.getSpam().groupBy { it.threadId }
     return conversations.mapNotNullTo(ArrayList()) { conversation ->
@@ -98,11 +101,42 @@ fun Context.withoutSpamOnly(conversations: List<Conversation>): ArrayList<Conver
             return@mapNotNullTo conversation
         }
 
-        // The newest message is in Spam; one more than the Spam entries is enough to find a message that isn't.
-        val dates = entries.associate { (it.id to it.isMMS) to it.date }
-        getMessages(conversation.threadId, includeScheduledMessages = false, limit = entries.size + 1)
-            .filterNot { dates[it.id to it.isMMS] == it.date }
-            .maxByOrNull { it.date }
-            ?.let { conversation.copy(snippet = it.body, date = it.date) }
+        try {
+            val dates = entries.associate { (it.id to it.isMMS) to it.date }
+            newestNonSpam(conversation.threadId, dates)?.let { (body, date) ->
+                conversation.copy(snippet = body, date = date)
+            }
+        } catch (e: Exception) {
+            conversation
+        }
+    }
+}
+
+/**
+ * The body and date of the newest message in a conversation that isn't in Spam, or null if there is none. Every newer
+ * message is in Spam, so it is among the newest [spamDates] size + 1 SMS or MMS. Throws if the store can't be read.
+ */
+private fun Context.newestNonSpam(threadId: Long, spamDates: Map<Pair<Long, Boolean>, Int>): Pair<String, Int>? {
+    val selection = "thread_id = ?"
+    val args = arrayOf(threadId.toString())
+    val order = "date DESC LIMIT ${spamDates.size + 1}"
+    val sms = contentResolver.query(Sms.CONTENT_URI, arrayOf(Sms._ID, Sms.DATE, Sms.BODY), selection, args, order)!!
+        .use { cursor ->
+            generateSequence { if (cursor.moveToNext()) cursor else null }
+                .map { Triple(it.getLong(0), (it.getLong(1) / MILLIS_PER_SECOND).toInt(), it.getString(2).orEmpty()) }
+                .firstOrNull { (id, date) -> spamDates[id to false] != date }
+        }
+    val mms = contentResolver.query(Mms.CONTENT_URI, arrayOf(Mms._ID, Mms.DATE), selection, args, order)!!
+        .use { cursor ->
+            generateSequence { if (cursor.moveToNext()) cursor else null }
+                .map { it.getLong(0) to it.getInt(1) }
+                .firstOrNull { (id, date) -> spamDates[id to true] != date }
+        }
+
+    return when {
+        mms != null && (sms == null || mms.second > sms.second) ->
+            getMmsTexts(mms.first)[mms.first].orEmpty() to mms.second
+        sms != null -> sms.third to sms.second
+        else -> null
     }
 }

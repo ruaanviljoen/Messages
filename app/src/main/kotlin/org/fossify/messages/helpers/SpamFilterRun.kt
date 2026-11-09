@@ -124,13 +124,14 @@ private fun Context.forEachReceivedMessage(callback: (message: SpamMessage, addr
     }
 }
 
-// The text parts of all MMS, by message id. Also used by search.
-internal fun Context.getMmsTexts(): Map<Long, String> {
+// The text parts of all MMS, or of one, by message id. Also used by search and the inbox.
+internal fun Context.getMmsTexts(messageId: Long? = null): Map<Long, String> {
     val texts = HashMap<Long, String>()
     queryCursor(
         uri = "content://mms/part".toUri(),
         projection = arrayOf(Mms.Part.MSG_ID, Mms.Part.TEXT),
-        selection = "${Mms.Part.CONTENT_TYPE} = 'text/plain'",
+        selection = "${Mms.Part.CONTENT_TYPE} = 'text/plain'" +
+            if (messageId == null) "" else " AND ${Mms.Part.MSG_ID} = $messageId",
         showErrors = true
     ) { cursor ->
         val text = cursor.getStringValue(Mms.Part.TEXT) ?: return@queryCursor
