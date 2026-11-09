@@ -162,7 +162,10 @@ import org.fossify.messages.helpers.CAPTURE_VIDEO_INTENT
 import org.fossify.messages.helpers.FILE_SIZE_NONE
 import org.fossify.messages.helpers.IS_LAUNCHED_FROM_SHORTCUT
 import org.fossify.messages.helpers.IS_RECYCLE_BIN
+import org.fossify.messages.helpers.IS_SPAM
 import org.fossify.messages.helpers.getSpamDates
+import org.fossify.messages.helpers.restoreConversationFromSpam
+import org.fossify.messages.helpers.restoreFromSpam
 import org.fossify.messages.helpers.MESSAGES_LIMIT
 import org.fossify.messages.helpers.PICK_CONTACT_INTENT
 import org.fossify.messages.helpers.PICK_DOCUMENT_INTENT
@@ -221,6 +224,7 @@ class ThreadActivity : SimpleActivity() {
     private var allMessagesFetched = false
     private var isJumpingToMessage = false
     private var isRecycleBin = false
+    private var isSpam = false
     private var spamDates = emptyMap<Pair<Long, Boolean>, Int>()
     private var isLaunchedFromShortcut = false
 
@@ -266,6 +270,7 @@ class ThreadActivity : SimpleActivity() {
             binding.threadToolbar.title = it
         }
         isRecycleBin = intent.getBooleanExtra(IS_RECYCLE_BIN, false)
+        isSpam = intent.getBooleanExtra(IS_SPAM, false)
         isLaunchedFromShortcut = intent.getBooleanExtra(IS_LAUNCHED_FROM_SHORTCUT, false)
 
         bus = EventBus.getDefault()
@@ -357,8 +362,8 @@ class ThreadActivity : SimpleActivity() {
         val firstPhoneNumber = participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value
         val archiveAvailable = config.isArchiveAvailable
         binding.threadToolbar.menu.apply {
-            findItem(R.id.delete).isVisible = threadItems.isNotEmpty()
-            findItem(R.id.restore).isVisible = threadItems.isNotEmpty() && isRecycleBin
+            findItem(R.id.delete).isVisible = threadItems.isNotEmpty() && !isSpam
+            findItem(R.id.restore).isVisible = threadItems.isNotEmpty() && (isRecycleBin || isSpam)
             findItem(R.id.archive).isVisible =
                 threadItems.isNotEmpty() && conversation?.isArchived == false && !isRecycleBin && archiveAvailable
             findItem(R.id.unarchive).isVisible =
@@ -594,6 +599,7 @@ class ThreadActivity : SimpleActivity() {
                 recyclerView = binding.threadMessagesList,
                 itemClick = { handleItemClick(it) },
                 isRecycleBin = isRecycleBin,
+                isSpam = isSpam,
                 deleteMessages = { messages, toRecycleBin, fromRecycleBin ->
                     deleteMessages(
                         messages,
@@ -736,6 +742,8 @@ class ThreadActivity : SimpleActivity() {
             } else {
                 if (toRecycleBin) {
                     moveMessageToRecycleBin(messageId)
+                } else if (fromRecycleBin && isSpam) {
+                    restoreFromSpam(message)
                 } else if (fromRecycleBin) {
                     restoreMessageFromRecycleBin(messageId)
                 } else {
@@ -1197,7 +1205,11 @@ class ThreadActivity : SimpleActivity() {
     private fun askConfirmRestoreAll() {
         ConfirmationDialog(this, getString(R.string.restore_confirmation)) {
             ensureBackgroundThread {
-                restoreAllMessagesFromRecycleBinForConversation(threadId)
+                if (isSpam) {
+                    restoreConversationFromSpam(threadId)
+                } else {
+                    restoreAllMessagesFromRecycleBinForConversation(threadId)
+                }
                 runOnUiThread {
                     refreshConversations()
                     finish()
@@ -1340,8 +1352,8 @@ class ThreadActivity : SimpleActivity() {
             return emptyList()
         }
 
-        // Spam is shown in the Spam folder instead.
-        val messageSnapshot = messages.filterNot { spamDates[it.id to it.isMMS] == it.date }.toSortedMessages()
+        // The Spam folder shows a conversation's spam, the inbox the rest.
+        val messageSnapshot = messages.filter { (spamDates[it.id to it.isMMS] == it.date) == isSpam }.toSortedMessages()
         val items = ArrayList<ThreadItem>()
 
         val subscriptionIdToSimId = HashMap<Int, String>()
@@ -2150,7 +2162,7 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun maybeSetupRecycleBinView() {
-        if (isRecycleBin) {
+        if (isRecycleBin || isSpam) {
             binding.messageHolder.root.beGone()
         }
     }

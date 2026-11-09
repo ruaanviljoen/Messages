@@ -63,10 +63,12 @@ import org.fossify.messages.extensions.getConversations
 import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.messagesDB
+import org.fossify.messages.helpers.IS_SPAM
 import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
 import org.fossify.messages.helpers.searchMessages
 import org.fossify.messages.helpers.spamDB
 import org.fossify.messages.helpers.withoutSpamOnly
+import org.fossify.messages.helpers.withoutStoredSpamOnly
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
 import org.fossify.messages.models.Conversation
@@ -86,7 +88,7 @@ class MainActivity : SimpleActivity() {
     private var storedFontSize = 0
     private var lastSearchedText = ""
 
-    // Search results that are in Spam, by message id and thread id; they open the Spam folder.
+    // Search results that are in Spam, by message id and thread id.
     private var spamSearchResults = emptySet<Pair<Long, Long>>()
     private var bus: EventBus? = null
 
@@ -307,7 +309,7 @@ class MainActivity : SimpleActivity() {
                 listOf()
             }
 
-            val inboxConversations = withoutSpamOnly(conversations)
+            val inboxConversations = withoutStoredSpamOnly(conversations)
             runOnUiThread {
                 setupConversations(inboxConversations, cached = true)
                 getNewConversations(
@@ -418,7 +420,7 @@ class MainActivity : SimpleActivity() {
                 }.thenByDescending { it.date }
             ).toMutableList() as ArrayList<Conversation>
 
-        if (cached && config.appRunCount == 1) {
+        if (cached && (config.appRunCount == 1 || conversations.isEmpty())) {
             // there are no cached conversations on the first run so we show the
             // loading placeholder and progress until we are done loading from telephony
             showOrHideProgress(conversations.isEmpty())
@@ -607,16 +609,12 @@ class MainActivity : SimpleActivity() {
             if (currAdapter == null) {
                 SearchResultsAdapter(this, searchResults, binding.searchResultsList, searchedText) {
                     hideKeyboard()
-                    val result = it as SearchResult
-                    if ((result.messageId to result.threadId) in spamSearchResults) {
-                        startActivity(Intent(this, SpamActivity::class.java))
-                        return@SearchResultsAdapter
-                    }
-
                     Intent(this, ThreadActivity::class.java).apply {
                         putExtra(THREAD_ID, (it as SearchResult).threadId)
                         putExtra(THREAD_TITLE, it.title)
                         putExtra(SEARCHED_MESSAGE_ID, it.messageId)
+                        // a result in Spam opens the conversation's spam
+                        putExtra(IS_SPAM, (it.messageId to it.threadId) in spamSearchResults)
                         startActivity(this)
                     }
                 }.apply {

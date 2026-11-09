@@ -1,33 +1,29 @@
 package org.fossify.messages.activities
 
+import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
-import org.fossify.commons.dialogs.ConfirmationAdvancedDialog
-import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.beGoneIf
 import org.fossify.commons.extensions.beVisibleIf
-import org.fossify.commons.extensions.formatDateOrTime
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.messages.R
-import org.fossify.messages.adapters.SearchResultsAdapter
+import org.fossify.messages.adapters.SpamConversationsAdapter
 import org.fossify.messages.databinding.ActivityRecycleBinConversationsBinding
-import org.fossify.messages.extensions.getMessages
-import org.fossify.messages.helpers.deleteFilteredMessage
-import org.fossify.messages.helpers.refreshConversations
-import org.fossify.messages.helpers.refreshMessages
-import org.fossify.messages.helpers.restoreFromSpam
-import org.fossify.messages.helpers.spamDB
-import org.fossify.messages.models.Message
-import org.fossify.messages.models.SearchResult
+import org.fossify.messages.helpers.IS_SPAM
+import org.fossify.messages.helpers.THREAD_ID
+import org.fossify.messages.helpers.THREAD_TITLE
+import org.fossify.messages.helpers.getSpamConversations
+import org.fossify.messages.models.Conversation
+import org.fossify.messages.models.Events
+import org.greenrobot.eventbus.EventBus
+import org.greenrobot.eventbus.Subscribe
+import org.greenrobot.eventbus.ThreadMode
 
-/**
- * The Spam folder: the messages the spam filter moved here, newest first.
- * Tapping one offers to restore or delete it.
- */
+/** The Spam folder: the conversations that have spam. It works like the recycle bin, with the same layout. */
 class SpamActivity : SimpleActivity() {
     private val binding by viewBinding(ActivityRecycleBinConversationsBinding::inflate)
-    private var messages = emptyList<Message>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,72 +31,58 @@ class SpamActivity : SimpleActivity() {
         binding.recycleBinToolbar.title = getString(R.string.spam)
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
         setupMaterialScrollListener(scrollingView = binding.conversationsList, topAppBar = binding.recycleBinAppbar)
+        EventBus.getDefault().register(this)
     }
 
     override fun onResume() {
         super.onResume()
         setupTopAppBar(binding.recycleBinAppbar, NavigationIcon.Arrow)
-        loadSpam()
+        loadSpamConversations()
     }
 
-    private fun loadSpam() {
-        ensureBackgroundThread {
-            val spam = spamDB.getSpam()
-            val dates = spam.associate { (it.id to it.isMMS) to it.date }
-            messages = spam.map { it.threadId }.distinct()
-                .flatMap { getMessages(it, includeScheduledMessages = false, limit = Int.MAX_VALUE) }
-                .filter { dates[it.id to it.isMMS] == it.date }
-                .sortedByDescending { it.date }
-            val results = messages.mapTo(ArrayList()) { it.toSearchResult() }
+    override fun onDestroy() {
+        super.onDestroy()
+        EventBus.getDefault().unregister(this)
+    }
 
+    private fun loadSpamConversations() {
+        ensureBackgroundThread {
+            val conversations = getSpamConversations().sortedByDescending { it.date }
             runOnUiThread {
                 binding.noConversationsPlaceholder.text = getString(R.string.no_spam)
-                binding.noConversationsPlaceholder.beVisibleIf(results.isEmpty())
-                binding.conversationsFastscroller.beGoneIf(results.isEmpty())
-                val adapter = binding.conversationsList.adapter as? SearchResultsAdapter
-                if (adapter == null) {
-                    binding.conversationsList.adapter =
-                        SearchResultsAdapter(this, results, binding.conversationsList, "") { showMessage(it) }
-                } else {
-                    adapter.updateItems(results)
-                }
+                binding.noConversationsPlaceholder.beVisibleIf(conversations.isEmpty())
+                binding.conversationsFastscroller.beGoneIf(conversations.isEmpty())
+                getOrCreateAdapter().updateConversations(ArrayList(conversations))
             }
         }
     }
 
-    private fun Message.toSearchResult() = SearchResult(
-        messageId = id,
-        title = senderName.ifEmpty { senderPhoneNumber },
-        snippet = body,
-        date = millis().formatDateOrTime(this@SpamActivity, hideTimeOnOtherDays = true, showCurrentYear = true),
-        threadId = threadId,
-        photoUri = senderPhotoUri
-    )
+    private fun getOrCreateAdapter(): SpamConversationsAdapter {
+        return binding.conversationsList.adapter as? SpamConversationsAdapter
+            ?: SpamConversationsAdapter(
+                activity = this,
+                recyclerView = binding.conversationsList,
+                onRefresh = { notifyDatasetChanged() },
+                itemClick = { openConversation(it as Conversation) }
+            ).also { binding.conversationsList.adapter = it }
+    }
 
-    private fun showMessage(result: Any) {
-        val message = messages.firstOrNull { it.toSearchResult() == result } ?: return
-        ConfirmationAdvancedDialog(
-            activity = this,
-            message = "${message.senderName.ifEmpty { message.senderPhoneNumber }}\n\n${message.body}",
-            positive = R.string.restore_to_inbox,
-            negative = org.fossify.commons.R.string.delete
-        ) { restore ->
-            if (restore) {
-                changeMessage { restoreFromSpam(message) }
-            } else {
-                ConfirmationDialog(this) {
-                    changeMessage { deleteFilteredMessage(message) }
-                }
-            }
+    @SuppressLint("NotifyDataSetChanged")
+    private fun notifyDatasetChanged() {
+        getOrCreateAdapter().notifyDataSetChanged()
+    }
+
+    private fun openConversation(conversation: Conversation) {
+        Intent(this, ThreadActivity::class.java).apply {
+            putExtra(THREAD_ID, conversation.threadId)
+            putExtra(THREAD_TITLE, conversation.title)
+            putExtra(IS_SPAM, true)
+            startActivity(this)
         }
     }
 
-    private fun changeMessage(change: () -> Unit) {
-        ensureBackgroundThread {
-            change()
-            refreshMessages()
-            refreshConversations()
-            loadSpam()
-        }
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun refreshConversations(@Suppress("unused") event: Events.RefreshConversations) {
+        loadSpamConversations()
     }
 }

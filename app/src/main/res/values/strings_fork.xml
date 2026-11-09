@@ -3,7 +3,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="spam">Spam</string>
     <string name="no_spam">No spam messages</string>
-    <string name="restore_to_inbox">Restore to inbox</string>
     <string name="spam_filter">Spam filter</string>
     <string name="run_spam_filter">Run filter on existing messages</string>
     <string name="spam_action">When a message matches</string>
