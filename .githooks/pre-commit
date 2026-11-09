@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks a commit whose staged changes contain secrets or personal data (rules in .gitleaks.toml).
+command -v gitleaks >/dev/null || { echo "gitleaks is not installed, so the commit is blocked." >&2; exit 1; }
+exec gitleaks git --staged --no-banner --redact .

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Blocks a push whose new commits contain secrets or personal data (rules in .gitleaks.toml).
+# Only commits that are not yet on any remote are scanned, so merged upstream history is skipped.
+command -v gitleaks >/dev/null || { echo "gitleaks is not installed, so the push is blocked." >&2; exit 1; }
+zero=0000000000000000000000000000000000000000
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue
+    gitleaks git --no-banner --redact --log-opts="$local_sha --not --remotes" . || status=1
+done
+exit $status

@@ -1,0 +1,20 @@
+# gitleaks configuration: the default secret rules plus checks for personal data.
+# Used by the hooks in .githooks (see FORK.md).
+[extend]
+useDefault = true
+
+[[rules]]
+id = "za-mobile-number"
+description = "South African mobile number"
+regex = '''(?:\+27|\b0)[6-8]\d[ -]?\d{3}[ -]?\d{4}\b'''
+[[rules.allowlists]]
+description = "Made-up numbers for tests and documentation, such as 082 000 0001"
+regexes = ['''[6-8]\d[ -]?000[ -]?000\d''']
+
+[[rules]]
+id = "email-address"
+description = "Email address"
+regex = '''[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'''
+[[rules.allowlists]]
+description = "No-reply and example addresses"
+regexes = ['''(?i)^no-?reply@''', '''@users\.noreply\.github\.com$''', '''@example\.(com|org|net)$''']
