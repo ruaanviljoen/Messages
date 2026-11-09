@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Strings added by this fork. They are kept apart from strings.xml so that upstream translation updates merge cleanly. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="spam">Spam</string>
     <string name="no_spam">No spam messages</string>
     <string name="restore_to_inbox">Restore to inbox</string>
