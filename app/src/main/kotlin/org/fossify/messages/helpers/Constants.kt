@@ -101,6 +101,14 @@ const val PICK_SAVE_DIR_INTENT = 50
 const val BLOCKED_KEYWORDS_EXPORT_DELIMITER = ","
 const val BLOCKED_KEYWORDS_EXPORT_EXTENSION = ".txt"
 
+// Spam filter
+const val SPAM_ACTION = "spam_action"
+const val FILTER_SAVED_CONTACTS = "filter_saved_contacts"
+const val SPAM_EXEMPT_NUMBERS = "spam_exempt_numbers"
+const val SPAM_ACTION_MOVE = 0
+const val SPAM_ACTION_DELETE = 1
+val DEFAULT_SPAM_KEYWORDS = setOf("opt out", "optout", "opt-out", "*135*181#", "opt-out.co")
+
 fun refreshMessages() {
     EventBus.getDefault().post(Events.RefreshMessages())
 }

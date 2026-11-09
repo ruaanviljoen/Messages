@@ -209,8 +209,7 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private fun setupManageBlockedKeywords() = binding.apply {
-        settingsManageBlockedKeywords.text =
-            getString(R.string.manage_blocked_keywords)
+        settingsManageBlockedKeywords.text = getString(R.string.spam_filter)
 
         settingsManageBlockedKeywordsHolder.setOnClickListener {
             Intent(this@SettingsActivity, ManageBlockedKeywordsActivity::class.java).apply {

@@ -80,7 +80,7 @@ class Config(context: Context) : BaseConfig(context) {
     }
 
     var blockedKeywords: Set<String>
-        get() = prefs.getStringSet(BLOCKED_KEYWORDS, HashSet<String>())!!
+        get() = prefs.getStringSet(BLOCKED_KEYWORDS, DEFAULT_SPAM_KEYWORDS)!!
         set(blockedKeywords) = prefs.edit().putStringSet(BLOCKED_KEYWORDS, blockedKeywords).apply()
 
     fun addBlockedKeyword(keyword: String) {
@@ -151,4 +151,17 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(KEEP_CONVERSATIONS_ARCHIVED, false)
         set(keepConversationsArchived) = prefs.edit()
             .putBoolean(KEEP_CONVERSATIONS_ARCHIVED, keepConversationsArchived).apply()
+
+    // Spam filter. The blocked keywords above are its keywords.
+    var spamAction: Int
+        get() = prefs.getInt(SPAM_ACTION, SPAM_ACTION_MOVE)
+        set(spamAction) = prefs.edit().putInt(SPAM_ACTION, spamAction).apply()
+
+    var filterSavedContacts: Boolean
+        get() = prefs.getBoolean(FILTER_SAVED_CONTACTS, false)
+        set(filterSavedContacts) = prefs.edit().putBoolean(FILTER_SAVED_CONTACTS, filterSavedContacts).apply()
+
+    var spamExemptNumbers: Set<String>
+        get() = prefs.getStringSet(SPAM_EXEMPT_NUMBERS, HashSet<String>())!!
+        set(spamExemptNumbers) = prefs.edit().putStringSet(SPAM_EXEMPT_NUMBERS, spamExemptNumbers).apply()
 }

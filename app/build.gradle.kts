@@ -92,6 +92,7 @@ android {
 
     sourceSets {
         getByName("main").java.directories.add("src/main/kotlin")
+        getByName("test").java.directories.add("src/test/kotlin")
     }
 
     compileOptions {
@@ -153,4 +154,5 @@ dependencies {
     implementation(libs.bundles.room)
     ksp(libs.androidx.room.compiler)
     detektPlugins(libs.compose.detekt)
+    testImplementation(libs.junit)
 }

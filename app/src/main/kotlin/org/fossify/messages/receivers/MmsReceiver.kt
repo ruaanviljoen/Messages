@@ -20,7 +20,9 @@ import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.shouldUnarchive
 import org.fossify.messages.extensions.showReceivedMessageNotification
 import org.fossify.messages.extensions.updateConversationArchivedStatus
-import org.fossify.messages.helpers.ReceiverUtils.isMessageFilteredOut
+import org.fossify.messages.extensions.messagesDB
+import org.fossify.messages.helpers.SpamFilter
+import org.fossify.messages.helpers.handleReceivedSpam
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
 import org.fossify.messages.models.Message
@@ -38,9 +40,8 @@ class MmsReceiver : MmsReceivedReceiver() {
         return false
     }
 
-    override fun isContentBlocked(context: Context, content: String): Boolean {
-        return isMessageFilteredOut(context, content)
-    }
+    // The spam filter runs once the MMS is saved, in handleMmsMessage.
+    override fun isContentBlocked(context: Context, content: String) = false
 
     override fun onMessageReceived(context: Context, messageUri: Uri?) {
         val mms = if (messageUri != null) {
@@ -66,6 +67,12 @@ class MmsReceiver : MmsReceivedReceiver() {
         size: Int,
         address: String
     ) {
+        if (SpamFilter(context).isSpam(address, mms.body)) {
+            context.messagesDB.insertOrUpdate(mms)
+            context.handleReceivedSpam(mms)
+            return
+        }
+
         val glideBitmap = try {
             Glide.with(context)
                 .asBitmap()

@@ -49,6 +49,13 @@
             android:exported="true" />
 
         <activity
+            android:name=".activities.SpamActivity"
+            android:configChanges="orientation"
+            android:exported="false"
+            android:label="@string/spam"
+            android:parentActivityName=".activities.MainActivity" />
+
+        <activity
             android:name=".activities.RecycleBinConversationsActivity"
             android:configChanges="orientation"
             android:exported="true"

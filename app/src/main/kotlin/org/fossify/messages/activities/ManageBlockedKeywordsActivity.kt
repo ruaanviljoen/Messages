@@ -3,22 +3,30 @@ package org.fossify.messages.activities
 import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import org.fossify.commons.dialogs.ConfirmationDialog
+import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.beVisibleIf
+import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getTempFile
+import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.extensions.underlineText
 import org.fossify.commons.extensions.updateTextColors
+import org.fossify.commons.extensions.value
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.ExportResult
 import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.interfaces.RefreshRecyclerViewListener
+import org.fossify.commons.models.RadioItem
 import org.fossify.messages.R
 import org.fossify.messages.databinding.ActivityManageBlockedKeywordsBinding
+import org.fossify.messages.databinding.DialogAddBlockedKeywordBinding
 import org.fossify.messages.dialogs.AddBlockedKeywordDialog
 import org.fossify.messages.dialogs.ExportBlockedKeywordsDialog
 import org.fossify.messages.dialogs.ManageBlockedKeywordsAdapter
@@ -26,6 +34,11 @@ import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.toArrayList
 import org.fossify.messages.helpers.BlockedKeywordsExporter
 import org.fossify.messages.helpers.BlockedKeywordsImporter
+import org.fossify.messages.helpers.SPAM_ACTION_DELETE
+import org.fossify.messages.helpers.SPAM_ACTION_MOVE
+import org.fossify.messages.helpers.SpamFilterRun
+import org.fossify.messages.helpers.applySpamFilterRun
+import org.fossify.messages.helpers.planSpamFilterRun
 import java.io.FileOutputStream
 import java.io.OutputStream
 
@@ -38,6 +51,7 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
         setContentView(binding.root)
         updateBlockedKeywords()
         setupOptionsMenu()
+        binding.blockKeywordsToolbar.title = getString(R.string.spam_filter)
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.manageBlockedKeywordsList))
         setupMaterialScrollListener(
@@ -68,6 +82,28 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
                     true
                 }
 
+                R.id.run_spam_filter -> {
+                    runSpamFilter(showIfNoChanges = true)
+                    true
+                }
+
+                R.id.spam_action -> {
+                    changeSpamAction()
+                    true
+                }
+
+                R.id.filter_saved_contacts -> {
+                    config.filterSavedContacts = !config.filterSavedContacts
+                    menuItem.isChecked = config.filterSavedContacts
+                    runSpamFilter()
+                    true
+                }
+
+                R.id.spam_exempt_numbers -> {
+                    editSpamExemptNumbers()
+                    true
+                }
+
                 R.id.export_blocked_keywords -> {
                     tryExportBlockedNumbers()
                     true
@@ -81,6 +117,7 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
                 else -> false
             }
         }
+        binding.blockKeywordsToolbar.menu.findItem(R.id.filter_saved_contacts).isChecked = config.filterSavedContacts
     }
 
     private val createDocument =
@@ -151,6 +188,7 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
                 }
             )
             updateBlockedKeywords()
+            runSpamFilter()
         }
     }
 
@@ -193,6 +231,7 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
 
     override fun refreshItems() {
         updateBlockedKeywords()
+        runSpamFilter()
     }
 
     private fun updateBlockedKeywords() {
@@ -219,6 +258,66 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
     private fun addOrEditBlockedKeyword(keyword: String? = null) {
         AddBlockedKeywordDialog(this, keyword) {
             updateBlockedKeywords()
+            runSpamFilter()
         }
+    }
+
+    private fun changeSpamAction() {
+        val items = arrayListOf(
+            RadioItem(SPAM_ACTION_MOVE, getString(R.string.spam_action_move)),
+            RadioItem(SPAM_ACTION_DELETE, getString(R.string.spam_action_delete))
+        )
+        RadioGroupDialog(this, items, config.spamAction, R.string.spam_action) {
+            config.spamAction = it as Int
+            runSpamFilter()
+        }
+    }
+
+    private fun editSpamExemptNumbers() {
+        val dialogBinding = DialogAddBlockedKeywordBinding.inflate(layoutInflater).apply {
+            addBlockedKeywordHint.hint = getString(R.string.spam_exempt_numbers_hint)
+            addBlockedKeywordEdittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            addBlockedKeywordEdittext.setText(config.spamExemptNumbers.sorted().joinToString("\n"))
+        }
+        getAlertDialogBuilder()
+            .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->
+                config.spamExemptNumbers = dialogBinding.addBlockedKeywordEdittext.value
+                    .split('\n', ',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+                runSpamFilter()
+            }
+            .setNegativeButton(org.fossify.commons.R.string.cancel, null)
+            .apply { setupDialogStuff(dialogBinding.root, this, R.string.spam_exempt_numbers) }
+    }
+
+    // Works out what the spam filter would change in the messages already on the phone and asks before changing it.
+    private fun runSpamFilter(showIfNoChanges: Boolean = false) {
+        if (showIfNoChanges) {
+            toast(R.string.checking_messages)
+        }
+
+        ensureBackgroundThread {
+            val run = planSpamFilterRun()
+            runOnUiThread {
+                if (run.hasChanges) {
+                    ConfirmationDialog(
+                        activity = this,
+                        message = describe(run),
+                        positive = R.string.apply,
+                        negative = org.fossify.commons.R.string.cancel
+                    ) {
+                        ensureBackgroundThread { applySpamFilterRun(run) }
+                    }
+                } else if (showIfNoChanges) {
+                    toast(R.string.spam_filter_no_changes)
+                }
+            }
+        }
+    }
+
+    private fun describe(run: SpamFilterRun): String {
+        val keywordLines = run.keywordCounts.entries.sortedByDescending { it.value }
+            .joinToString("\n") { getString(R.string.spam_keyword_count, it.key, it.value) }
+        return getString(R.string.spam_filter_run_summary, run.toSpam.size, run.toInbox.size, run.toDelete.size) +
+            if (keywordLines.isEmpty()) "" else "\n\n" + getString(R.string.spam_keyword_counts) + "\n" + keywordLines
     }
 }

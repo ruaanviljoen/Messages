@@ -64,6 +64,7 @@ import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
+import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
 import org.fossify.messages.models.Conversation
@@ -177,6 +178,7 @@ class MainActivity : SimpleActivity() {
 
         binding.mainMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
+                R.id.show_spam -> startActivity(Intent(applicationContext, SpamActivity::class.java))
                 R.id.show_recycle_bin -> launchRecycleBin()
                 R.id.show_archived -> launchArchivedConversations()
                 R.id.settings -> launchSettings()
@@ -300,8 +302,9 @@ class MainActivity : SimpleActivity() {
                 listOf()
             }
 
+            val inboxConversations = withoutSpamOnly(conversations)
             runOnUiThread {
-                setupConversations(conversations, cached = true)
+                setupConversations(inboxConversations, cached = true)
                 getNewConversations(
                     (conversations + archived).toMutableList() as ArrayList<Conversation>
                 )
@@ -364,7 +367,7 @@ class MainActivity : SimpleActivity() {
                 }
             }
 
-            val allConversations = conversationsDB.getNonArchived() as ArrayList<Conversation>
+            val allConversations = withoutSpamOnly(conversationsDB.getNonArchived())
             runOnUiThread {
                 setupConversations(allConversations)
             }

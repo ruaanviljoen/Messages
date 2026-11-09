@@ -162,6 +162,7 @@ import org.fossify.messages.helpers.CAPTURE_VIDEO_INTENT
 import org.fossify.messages.helpers.FILE_SIZE_NONE
 import org.fossify.messages.helpers.IS_LAUNCHED_FROM_SHORTCUT
 import org.fossify.messages.helpers.IS_RECYCLE_BIN
+import org.fossify.messages.helpers.withoutSpam
 import org.fossify.messages.helpers.MESSAGES_LIMIT
 import org.fossify.messages.helpers.PICK_CONTACT_INTENT
 import org.fossify.messages.helpers.PICK_DOCUMENT_INTENT
@@ -446,7 +447,7 @@ class ThreadActivity : SimpleActivity() {
                 emptyList()
             }
             clearExpiredScheduledMessages(threadId, messages)
-            messages = messages
+            messages = withoutSpamUnlessRecycleBin(messages)
                 .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
                 .toSortedMessages()
             if (messages.size > MESSAGES_LIMIT) {
@@ -492,7 +493,7 @@ class ThreadActivity : SimpleActivity() {
                     val recycledMessages = messagesDB.getThreadMessagesFromRecycleBin(threadId)
                     messages = messages.filterNotInByKey(recycledMessages) { it.getStableId() }
                 }
-                messages = messages.toSortedMessages()
+                messages = withoutSpam(messages).toSortedMessages()
             }
 
             val providerParticipantsChanged = reconcileProviderParticipants()
@@ -1880,7 +1881,7 @@ class ThreadActivity : SimpleActivity() {
             )
         }
 
-        messages = newMessages.apply {
+        messages = withoutSpam(newMessages.apply {
             val scheduledMessages = messagesDB.getScheduledThreadMessages(threadId)
                 .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
             addAll(scheduledMessages)
@@ -1888,7 +1889,7 @@ class ThreadActivity : SimpleActivity() {
                 val recycledMessages = messagesDB.getThreadMessagesFromRecycleBin(threadId).toSet()
                 removeAll(recycledMessages)
             }
-        }.toSortedMessages()
+        }).toSortedMessages()
 
         messages.filter { !it.isScheduled && !it.isReceivedMessage() && it.id > lastMaxId }
             .forEach { latestMessage ->
@@ -2142,6 +2143,10 @@ class ThreadActivity : SimpleActivity() {
         binding.messageHolder.attachmentPickerHolder.showWithAnimation()
         animateAttachmentButton(rotation = -135f)
     }
+
+    // Spam is shown in the Spam folder; the recycle bin shows deleted messages whatever their folder.
+    private fun withoutSpamUnlessRecycleBin(messages: List<Message>) =
+        if (isRecycleBin) messages else withoutSpam(messages)
 
     private fun maybeSetupRecycleBinView() {
         if (isRecycleBin) {

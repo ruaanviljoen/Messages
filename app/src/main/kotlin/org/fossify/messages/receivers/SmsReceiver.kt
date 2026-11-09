@@ -22,7 +22,8 @@ import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.extensions.shouldUnarchive
 import org.fossify.messages.extensions.showReceivedMessageNotification
 import org.fossify.messages.extensions.updateConversationArchivedStatus
-import org.fossify.messages.helpers.ReceiverUtils.isMessageFilteredOut
+import org.fossify.messages.helpers.SpamFilter
+import org.fossify.messages.helpers.handleReceivedSpam
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
 import org.fossify.messages.models.Message
@@ -45,7 +46,6 @@ class SmsReceiver : BroadcastReceiver() {
                 val status = parts.last().status
                 val body = buildString { parts.forEach { append(it.messageBody.orEmpty()) } }
 
-                if (isMessageFilteredOut(appContext, body)) return@ensureBackgroundThread
                 if (appContext.isNumberBlocked(address)) return@ensureBackgroundThread
                 if (appContext.baseConfig.blockUnknownNumbers) {
                     val privateCursor =
@@ -54,6 +54,7 @@ class SmsReceiver : BroadcastReceiver() {
                     if (result == ContactLookupResult.NotFound) return@ensureBackgroundThread
                 }
 
+                val isSpam = SpamFilter(appContext).isSpam(address, body)
                 val date = System.currentTimeMillis()
                 val threadId = appContext.getThreadId(address)
                 val subscriptionId = intent.getIntExtra("subscription", -1)
@@ -66,7 +67,8 @@ class SmsReceiver : BroadcastReceiver() {
                     date = date,
                     threadId = threadId,
                     subscriptionId = subscriptionId,
-                    status = status
+                    status = status,
+                    isSpam = isSpam
                 )
             } finally {
                 pending.finish()
@@ -84,7 +86,8 @@ class SmsReceiver : BroadcastReceiver() {
         threadId: Long,
         type: Int = Telephony.Sms.MESSAGE_TYPE_INBOX,
         subscriptionId: Int,
-        status: Int
+        status: Int,
+        isSpam: Boolean
     ) {
         val photoUri = SimpleContactsHelper(context).getPhotoUriFromPhoneNumber(address)
         val bitmap = context.getNotificationBitmap(photoUri)
@@ -136,6 +139,10 @@ class SmsReceiver : BroadcastReceiver() {
         )
 
         context.messagesDB.insertOrUpdate(message)
+        if (isSpam) {
+            context.handleReceivedSpam(message)
+            return
+        }
 
         if (context.shouldUnarchive()) {
             context.updateConversationArchivedStatus(threadId, false)
