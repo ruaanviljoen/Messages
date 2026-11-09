@@ -46,10 +46,10 @@ class SpamActivity : SimpleActivity() {
     private fun loadSpam() {
         ensureBackgroundThread {
             val spam = spamDB.getSpam()
-            val keys = spam.map { it.id to it.isMMS }.toSet()
+            val dates = spam.associate { (it.id to it.isMMS) to it.date }
             messages = spam.map { it.threadId }.distinct()
                 .flatMap { getMessages(it, includeScheduledMessages = false, limit = Int.MAX_VALUE) }
-                .filter { (it.id to it.isMMS) in keys }
+                .filter { dates[it.id to it.isMMS] == it.date }
                 .sortedByDescending { it.date }
             val results = messages.mapTo(ArrayList()) { it.toSearchResult() }
 

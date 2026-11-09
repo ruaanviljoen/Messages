@@ -711,7 +711,7 @@ class ThreadActivity : SimpleActivity() {
         messages = messages.toSortedMessages()
             .filterNot { it in messagesToRemoveSet }
         val latestThreadItems = getThreadItems()
-        val hasMessages = messages.isNotEmpty()
+        val hasMessages = latestThreadItems.any { it is Message }
 
         runOnUiThread {
             messagesToRemove.forEach { message ->

@@ -1,16 +1,12 @@
 package org.fossify.messages.helpers
 
 import android.content.Context
-import android.provider.Telephony.Threads
-import androidx.core.net.toUri
-import org.fossify.commons.extensions.getIntValue
-import org.fossify.commons.extensions.getLongValue
-import org.fossify.commons.extensions.queryCursor
 import org.fossify.commons.helpers.ContactLookupResult
 import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.messages.databases.SpamDatabase
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.deleteMessage
+import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.markMessageRead
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.extensions.moveMessageToRecycleBin
@@ -90,23 +86,23 @@ fun Context.restoreFromSpam(message: Message) = spamDB.insert(message.toSpamMess
 fun Context.getSpamDates(threadId: Long) =
     spamDB.getThreadsSpam(listOf(threadId)).associate { (it.id to it.isMMS) to it.date }
 
-/** [conversations] without the ones whose messages are all in Spam. Run it off the main thread. */
+/**
+ * [conversations] as the inbox shows them: without the ones whose messages are all in Spam, and with the newest message
+ * that isn't spam as the snippet and date. Run it off the main thread.
+ */
 fun Context.withoutSpamOnly(conversations: List<Conversation>): ArrayList<Conversation> {
-    val spamCounts = spamDB.getSpam().groupingBy { it.threadId }.eachCount()
-    if (spamCounts.isEmpty()) {
-        return ArrayList(conversations)
-    }
-
-    val spamOnly = HashSet<Long>()
-    queryCursor(
-        uri = "${Threads.CONTENT_URI}?simple=true".toUri(),
-        projection = arrayOf(Threads._ID, Threads.MESSAGE_COUNT),
-        selection = "${Threads._ID} IN (${spamCounts.keys.joinToString(",")})"
-    ) { cursor ->
-        val threadId = cursor.getLongValue(Threads._ID)
-        if (cursor.getIntValue(Threads.MESSAGE_COUNT) <= (spamCounts[threadId] ?: 0)) {
-            spamOnly += threadId
+    val spam = spamDB.getSpam().groupBy { it.threadId }
+    return conversations.mapNotNullTo(ArrayList()) { conversation ->
+        val entries = spam[conversation.threadId]
+        if (entries == null || entries.maxOf { it.date } < conversation.date) {
+            return@mapNotNullTo conversation
         }
+
+        // The newest message is in Spam; one more than the Spam entries is enough to find a message that isn't.
+        val dates = entries.associate { (it.id to it.isMMS) to it.date }
+        getMessages(conversation.threadId, includeScheduledMessages = false, limit = entries.size + 1)
+            .filterNot { dates[it.id to it.isMMS] == it.date }
+            .maxByOrNull { it.date }
+            ?.let { conversation.copy(snippet = it.body, date = it.date) }
     }
-    return conversations.filterNotTo(ArrayList()) { it.threadId in spamOnly }
 }
