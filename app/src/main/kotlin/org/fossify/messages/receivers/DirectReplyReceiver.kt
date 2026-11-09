@@ -39,7 +39,10 @@ class DirectReplyReceiver : BroadcastReceiver() {
             ensureBackgroundThread {
                 var messageId = 0L
                 try {
-                    context.sendMessageCompat(body, listOf(address), subscriptionId, emptyList())
+                    // reply to everyone in a group conversation, not only to the sender
+                    val addresses = context.getThreadParticipants(threadId, null).getAddresses()
+                        .ifEmpty { listOf(address) }
+                    context.sendMessageCompat(body, addresses, subscriptionId, emptyList())
                     val message = context.getMessages(
                         threadId = threadId, includeScheduledMessages = false, limit = 1
                     ).lastOrNull()

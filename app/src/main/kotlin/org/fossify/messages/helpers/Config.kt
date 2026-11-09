@@ -36,17 +36,18 @@ class Config(context: Context) : BaseConfig(context) {
             .putBoolean(ENABLE_DELIVERY_REPORTS, enableDeliveryReports).apply()
 
     var sendLongMessageMMS: Boolean
-        get() = prefs.getBoolean(SEND_LONG_MESSAGE_MMS, false)
+        get() = prefs.getBoolean(SEND_LONG_MESSAGE_MMS, true)
         set(sendLongMessageMMS) = prefs.edit().putBoolean(SEND_LONG_MESSAGE_MMS, sendLongMessageMMS)
             .apply()
 
     var sendGroupMessageMMS: Boolean
-        get() = prefs.getBoolean(SEND_GROUP_MESSAGE_MMS, false)
+        get() = prefs.getBoolean(SEND_GROUP_MESSAGE_MMS, true)
         set(sendGroupMessageMMS) = prefs.edit()
             .putBoolean(SEND_GROUP_MESSAGE_MMS, sendGroupMessageMMS).apply()
 
+    // Group MMS is on by default in this fork, so there is nothing to ask before the first group message.
     val isGroupMessageMmsPreferenceResolved: Boolean
-        get() = prefs.contains(SEND_GROUP_MESSAGE_MMS)
+        get() = true
 
     var lockScreenVisibilitySetting: Int
         get() = prefs.getInt(LOCK_SCREEN_VISIBILITY, LOCK_SCREEN_SENDER_MESSAGE)
