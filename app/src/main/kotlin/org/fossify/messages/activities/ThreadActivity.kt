@@ -251,6 +251,8 @@ class ThreadActivity : SimpleActivity() {
         setupOptionsMenu()
         refreshMenuItems()
         setupEdgeToEdge(
+            // the Spam and recycle bin views have no message box, so the list itself keeps clear of the navigation bar
+            padBottomSystem = if (isReadOnlyView()) listOf(binding.threadMessagesList) else emptyList(),
             padBottomImeAndSystem = listOf(
                 binding.messageHolder.root,
                 binding.shortCodeHolder.root
@@ -1061,7 +1063,7 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun maybeDisableShortCodeReply() {
-        if (isSpecialNumber() && !isRecycleBin) {
+        if (isSpecialNumber() && !isRecycleBin && !isSpam) {
             currentFocus?.clearFocus()
             hideKeyboard()
             binding.messageHolder.threadTypeMessage.text?.clear()
@@ -2174,6 +2176,10 @@ class ThreadActivity : SimpleActivity() {
             messages.forEach { spamDB.delete(it.id, it.isMMS) }
         }
     }
+
+    // Read from the intent, because it is needed before the flags are set in onCreate.
+    private fun isReadOnlyView() =
+        intent.getBooleanExtra(IS_RECYCLE_BIN, false) || intent.getBooleanExtra(IS_SPAM, false)
 
     // The Spam view loads the whole conversation, because its spam can be older than the newest page of messages.
     private fun messagesLimit() = if (isSpam) Int.MAX_VALUE else MESSAGES_LIMIT
