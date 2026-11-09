@@ -253,6 +253,7 @@ class ThreadActivity : SimpleActivity() {
         setupEdgeToEdge(
             // the Spam and recycle bin views have no message box, so the list itself keeps clear of the navigation bar
             padBottomSystem = if (isReadOnlyView()) listOf(binding.threadMessagesList) else emptyList(),
+            moveBottomSystem = if (isReadOnlyView()) listOf(binding.scrollToBottomFab) else emptyList(),
             padBottomImeAndSystem = listOf(
                 binding.messageHolder.root,
                 binding.shortCodeHolder.root
