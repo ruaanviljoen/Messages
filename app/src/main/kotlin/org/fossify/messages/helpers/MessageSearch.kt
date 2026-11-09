@@ -13,6 +13,7 @@ import org.fossify.messages.extensions.getMMSSender
 import org.fossify.messages.extensions.getNameAndPhotoFromPhoneNumber
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.models.Message
+import org.fossify.messages.models.NamePhoto
 
 /** Whether a message body contains the searched text, ignoring case. */
 fun matchesSearch(body: String, text: String) = text.isNotEmpty() && body.contains(text, ignoreCase = true)
@@ -24,14 +25,20 @@ fun matchesSearch(body: String, text: String) = text.isNotEmpty() && body.contai
  */
 fun Context.searchMessages(text: String): List<Message> {
     val found = ArrayList<Message>()
+    val names = HashMap<String, NamePhoto>()
+    // SQLite's LIKE ignores case for ASCII letters only, so it can narrow the search only for ASCII text.
+    val isAscii = text.all { it.code < ASCII_LIMIT }
     queryCursor(
         uri = Sms.CONTENT_URI,
         projection = arrayOf(Sms._ID, Sms.THREAD_ID, Sms.ADDRESS, Sms.BODY, Sms.DATE, Sms.TYPE, Sms.READ),
+        selection = if (isAscii) "${Sms.BODY} LIKE ? ESCAPE '\\'" else null,
+        selectionArgs = if (isAscii) arrayOf("%${text.escapeLike()}%") else null,
         showErrors = true
     ) { cursor ->
         val body = cursor.getStringValue(Sms.BODY).orEmpty()
         if (matchesSearch(body, text)) {
             found += searchResultMessage(
+                names = names,
                 id = cursor.getLongValue(Sms._ID),
                 isMMS = false,
                 threadId = cursor.getLongValue(Sms.THREAD_ID),
@@ -49,16 +56,17 @@ fun Context.searchMessages(text: String): List<Message> {
         queryCursor(
             uri = Mms.CONTENT_URI,
             projection = arrayOf(Mms._ID, Mms.THREAD_ID, Mms.DATE, Mms.MESSAGE_BOX, Mms.READ),
-            selection = "${Mms._ID} IN (${mmsTexts.keys.joinToString(",")})",
             showErrors = true
         ) { cursor ->
             val id = cursor.getLongValue(Mms._ID)
+            val body = mmsTexts[id] ?: return@queryCursor
             found += searchResultMessage(
+                names = names,
                 id = id,
                 isMMS = true,
                 threadId = cursor.getLongValue(Mms.THREAD_ID),
                 address = getMMSSender(id),
-                body = mmsTexts[id].orEmpty(),
+                body = body,
                 date = cursor.getIntValue(Mms.DATE),
                 type = cursor.getIntValue(Mms.MESSAGE_BOX),
                 read = cursor.getIntValue(Mms.READ) == 1
@@ -69,8 +77,13 @@ fun Context.searchMessages(text: String): List<Message> {
     return found + messagesDB.getMessagesWithText("%$text%").filter { it.isScheduled }
 }
 
+private const val ASCII_LIMIT = 128
+
+private fun String.escapeLike() = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
 @Suppress("LongParameterList")
 private fun Context.searchResultMessage(
+    names: HashMap<String, NamePhoto>,
     id: Long,
     isMMS: Boolean,
     threadId: Long,
@@ -80,7 +93,7 @@ private fun Context.searchResultMessage(
     type: Int,
     read: Boolean
 ): Message {
-    val namePhoto = getNameAndPhotoFromPhoneNumber(address)
+    val namePhoto = names.getOrPut(address) { getNameAndPhotoFromPhoneNumber(address) }
     val participant = SimpleContact(
         rawId = 0,
         contactId = 0,

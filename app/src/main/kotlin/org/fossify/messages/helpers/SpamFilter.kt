@@ -33,7 +33,8 @@ fun String.toComparableNumber() = filter(Char::isDigit).takeLast(COMPARABLE_NUMB
 /** The spam filter's current settings, read once. Reuse one instance when checking many messages. */
 class SpamFilter(private val context: Context) {
     private val keywords = context.config.blockedKeywords
-    private val exemptNumbers = context.config.spamExemptNumbers.map { it.toComparableNumber() }.toSet()
+    // numbers compare by their last digits, sender names such as "FNB" by their text
+    private val exemptNumbers = context.config.spamExemptNumbers.map { it.toExemptKey() }.toSet()
     private val filterSavedContacts = context.config.filterSavedContacts
     private val savedContacts = HashMap<String, Boolean>()
     val deletes = context.config.spamAction == SPAM_ACTION_DELETE
@@ -47,9 +48,10 @@ class SpamFilter(private val context: Context) {
     fun isSpam(address: String, body: String) = findKeywords(address, body).isNotEmpty()
 
     private fun isExempt(address: String): Boolean {
-        val number = address.toComparableNumber()
-        return (number.isNotEmpty() && number in exemptNumbers) || (!filterSavedContacts && isSavedContact(address))
+        return address.toExemptKey() in exemptNumbers || (!filterSavedContacts && isSavedContact(address))
     }
+
+    private fun String.toExemptKey() = toComparableNumber().ifEmpty { trim().lowercase() }
 
     private fun isSavedContact(address: String) = savedContacts.getOrPut(address) {
         SimpleContactsHelper(context).existsSync(address) == ContactLookupResult.Found
@@ -84,11 +86,9 @@ fun Context.deleteFilteredMessage(message: Message) {
 /** Returns a message to the inbox; later runs of the filter leave it there. */
 fun Context.restoreFromSpam(message: Message) = spamDB.insert(message.toSpamMessage(restored = true))
 
-/** [messages] without the ones in Spam. Run it off the main thread. */
-fun Context.withoutSpam(messages: List<Message>): List<Message> {
-    val spam = spamDB.getThreadsSpam(messages.map { it.threadId }.distinct()).map { it.id to it.isMMS }.toSet()
-    return if (spam.isEmpty()) messages else messages.filterNot { (it.id to it.isMMS) in spam }
-}
+/** The dates of a conversation's messages in Spam, by message id and type. Run it off the main thread. */
+fun Context.getSpamDates(threadId: Long) =
+    spamDB.getThreadsSpam(listOf(threadId)).associate { (it.id to it.isMMS) to it.date }
 
 /** [conversations] without the ones whose messages are all in Spam. Run it off the main thread. */
 fun Context.withoutSpamOnly(conversations: List<Conversation>): ArrayList<Conversation> {

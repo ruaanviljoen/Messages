@@ -103,8 +103,11 @@ class SmsReceiver : BroadcastReceiver() {
             subscriptionId = subscriptionId
         )
 
-        context.getConversations(threadId).firstOrNull()?.let { conv ->
-            runCatching { context.insertOrUpdateConversation(conv) }
+        // spam must not become the conversation's snippet in the inbox
+        if (!isSpam) {
+            context.getConversations(threadId).firstOrNull()?.let { conv ->
+                runCatching { context.insertOrUpdateConversation(conv) }
+            }
         }
 
         val senderName = context.getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true).use {

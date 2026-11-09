@@ -25,4 +25,7 @@ interface SpamDao {
 
     @Query("DELETE FROM spam_messages WHERE id = :id AND is_mms = :isMMS")
     fun delete(id: Long, isMMS: Boolean)
+
+    @Query("DELETE FROM spam_messages WHERE thread_id = :threadId")
+    fun deleteThread(threadId: Long)
 }

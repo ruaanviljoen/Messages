@@ -11,6 +11,7 @@ import org.fossify.commons.extensions.queryCursor
 import org.fossify.messages.extensions.getMMSSender
 import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.markMessageRead
+import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.models.SpamMessage
 
 internal const val MILLIS_PER_SECOND = 1000
@@ -27,13 +28,14 @@ data class SpamFilterRun(
 }
 
 /**
- * Works out what the filter would change, without changing anything. Messages the user restored from Spam are left
- * alone. Spam entries whose message is gone, or whose id now belongs to another message, are [SpamFilterRun.stale].
- * Slow, so run it off the main thread.
+ * Works out what the filter would change, without changing anything. Messages the user restored from Spam, and
+ * messages already in the recycle bin, are left alone. Spam entries whose message is gone, or whose id now belongs to
+ * another message, are [SpamFilterRun.stale]. Slow, so run it off the main thread.
  */
 fun Context.planSpamFilterRun(): SpamFilterRun {
     val filter = SpamFilter(this)
     val entries = spamDB.getAll().associateByTo(HashMap()) { it.id to it.isMMS }
+    val recycled = messagesDB.getAllRecycleBinMessages().map { it.id to it.isMMS }.toSet()
     val toSpam = ArrayList<SpamMessage>()
     val toInbox = ArrayList<SpamMessage>()
     val toDelete = ArrayList<SpamMessage>()
@@ -47,7 +49,7 @@ fun Context.planSpamFilterRun(): SpamFilterRun {
             stale += stored
         }
 
-        if (entry?.restored == true) {
+        if (entry?.restored == true || (message.id to message.isMMS) in recycled) {
             return@forEachReceivedMessage
         }
 
@@ -60,7 +62,9 @@ fun Context.planSpamFilterRun(): SpamFilterRun {
         }
     }
 
-    return SpamFilterRun(toSpam, toInbox, toDelete, stale + entries.values, keywordCounts)
+    // An entry not seen above is stale only if its message is really gone, not merely missed by a failed read.
+    stale += entries.values.filterNot { messageExists(it) }
+    return SpamFilterRun(toSpam, toInbox, toDelete, stale, keywordCounts)
 }
 
 /** Applies a run worked out by [planSpamFilterRun]. Run it off the main thread. */
@@ -76,6 +80,18 @@ fun Context.applySpamFilterRun(run: SpamFilterRun) {
     }
     refreshMessages()
     refreshConversations()
+}
+
+// A failed query counts as "exists", so that a read error never removes an entry.
+@Suppress("TooGenericExceptionCaught", "SwallowedException")
+private fun Context.messageExists(entry: SpamMessage): Boolean {
+    val uri = if (entry.isMMS) Mms.CONTENT_URI else Sms.CONTENT_URI
+    return try {
+        contentResolver.query(uri, arrayOf(Sms._ID), "${Sms._ID} = ?", arrayOf(entry.id.toString()), null)
+            ?.use { it.count > 0 } ?: true
+    } catch (e: Exception) {
+        true
+    }
 }
 
 // Reading the received messages follows SpamScanner in Messages+ (https://github.com/arikw/messages).

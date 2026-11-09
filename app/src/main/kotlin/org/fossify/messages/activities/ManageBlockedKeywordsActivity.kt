@@ -46,6 +46,9 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
 
     private val binding by viewBinding(ActivityManageBlockedKeywordsBinding::inflate)
 
+    // Only the latest run of the spam filter is offered; older ones were worked out with outdated settings.
+    private var latestSpamFilterRun = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
@@ -295,10 +298,13 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
             toast(R.string.checking_messages)
         }
 
+        val runNumber = ++latestSpamFilterRun
         ensureBackgroundThread {
             val run = planSpamFilterRun()
             runOnUiThread {
-                if (run.hasChanges) {
+                if (runNumber != latestSpamFilterRun || isFinishing) {
+                    return@runOnUiThread
+                } else if (run.hasChanges) {
                     ConfirmationDialog(
                         activity = this,
                         message = describe(run),

@@ -574,7 +574,7 @@ class MainActivity : SimpleActivity() {
             searchResults.add(searchResult)
         }
 
-        messages.sortedByDescending { it.id }.forEach { message ->
+        messages.sortedByDescending { it.date }.forEach { message ->
             var recipient = message.senderName
             if (recipient.isEmpty() && message.participants.isNotEmpty()) {
                 val participantNames = message.participants.map { it.name }

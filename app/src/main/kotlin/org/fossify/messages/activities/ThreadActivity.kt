@@ -162,7 +162,7 @@ import org.fossify.messages.helpers.CAPTURE_VIDEO_INTENT
 import org.fossify.messages.helpers.FILE_SIZE_NONE
 import org.fossify.messages.helpers.IS_LAUNCHED_FROM_SHORTCUT
 import org.fossify.messages.helpers.IS_RECYCLE_BIN
-import org.fossify.messages.helpers.withoutSpam
+import org.fossify.messages.helpers.getSpamDates
 import org.fossify.messages.helpers.MESSAGES_LIMIT
 import org.fossify.messages.helpers.PICK_CONTACT_INTENT
 import org.fossify.messages.helpers.PICK_DOCUMENT_INTENT
@@ -221,6 +221,7 @@ class ThreadActivity : SimpleActivity() {
     private var allMessagesFetched = false
     private var isJumpingToMessage = false
     private var isRecycleBin = false
+    private var spamDates = emptyMap<Pair<Long, Boolean>, Int>()
     private var isLaunchedFromShortcut = false
 
     private var isScheduledMessage: Boolean = false
@@ -447,7 +448,8 @@ class ThreadActivity : SimpleActivity() {
                 emptyList()
             }
             clearExpiredScheduledMessages(threadId, messages)
-            messages = withoutSpamUnlessRecycleBin(messages)
+            spamDates = if (isRecycleBin) emptyMap() else getSpamDates(threadId)
+            messages = messages
                 .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
                 .toSortedMessages()
             if (messages.size > MESSAGES_LIMIT) {
@@ -493,7 +495,8 @@ class ThreadActivity : SimpleActivity() {
                     val recycledMessages = messagesDB.getThreadMessagesFromRecycleBin(threadId)
                     messages = messages.filterNotInByKey(recycledMessages) { it.getStableId() }
                 }
-                messages = withoutSpam(messages).toSortedMessages()
+                messages = messages.toSortedMessages()
+                spamDates = getSpamDates(threadId)
             }
 
             val providerParticipantsChanged = reconcileProviderParticipants()
@@ -1337,7 +1340,8 @@ class ThreadActivity : SimpleActivity() {
             return emptyList()
         }
 
-        val messageSnapshot = messages.toSortedMessages()
+        // Spam is shown in the Spam folder instead.
+        val messageSnapshot = messages.filterNot { spamDates[it.id to it.isMMS] == it.date }.toSortedMessages()
         val items = ArrayList<ThreadItem>()
 
         val subscriptionIdToSimId = HashMap<Int, String>()
@@ -1881,7 +1885,8 @@ class ThreadActivity : SimpleActivity() {
             )
         }
 
-        messages = withoutSpam(newMessages.apply {
+        spamDates = getSpamDates(threadId)
+        messages = newMessages.apply {
             val scheduledMessages = messagesDB.getScheduledThreadMessages(threadId)
                 .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
             addAll(scheduledMessages)
@@ -1889,7 +1894,7 @@ class ThreadActivity : SimpleActivity() {
                 val recycledMessages = messagesDB.getThreadMessagesFromRecycleBin(threadId).toSet()
                 removeAll(recycledMessages)
             }
-        }).toSortedMessages()
+        }.toSortedMessages()
 
         messages.filter { !it.isScheduled && !it.isReceivedMessage() && it.id > lastMaxId }
             .forEach { latestMessage ->
@@ -2143,10 +2148,6 @@ class ThreadActivity : SimpleActivity() {
         binding.messageHolder.attachmentPickerHolder.showWithAnimation()
         animateAttachmentButton(rotation = -135f)
     }
-
-    // Spam is shown in the Spam folder; the recycle bin shows deleted messages whatever their folder.
-    private fun withoutSpamUnlessRecycleBin(messages: List<Message>) =
-        if (isRecycleBin) messages else withoutSpam(messages)
 
     private fun maybeSetupRecycleBinView() {
         if (isRecycleBin) {
