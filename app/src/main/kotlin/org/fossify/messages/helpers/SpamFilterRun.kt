@@ -13,7 +13,7 @@ import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.markMessageRead
 import org.fossify.messages.models.SpamMessage
 
-private const val MILLIS_PER_SECOND = 1000
+internal const val MILLIS_PER_SECOND = 1000
 
 /** What running the spam filter over the received messages on the phone would change. */
 data class SpamFilterRun(
@@ -108,8 +108,8 @@ private fun Context.forEachReceivedMessage(callback: (message: SpamMessage, addr
     }
 }
 
-// The text parts of all MMS, by message id.
-private fun Context.getMmsTexts(): Map<Long, String> {
+// The text parts of all MMS, by message id. Also used by search.
+internal fun Context.getMmsTexts(): Map<Long, String> {
     val texts = HashMap<Long, String>()
     queryCursor(
         uri = "content://mms/part".toUri(),

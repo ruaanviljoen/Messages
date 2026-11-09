@@ -64,6 +64,8 @@ import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
+import org.fossify.messages.helpers.searchMessages
+import org.fossify.messages.helpers.spamDB
 import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
@@ -83,6 +85,9 @@ class MainActivity : SimpleActivity() {
     private var storedTextColor = 0
     private var storedFontSize = 0
     private var lastSearchedText = ""
+
+    // Search results that are in Spam, by message id and thread id; they open the Spam folder.
+    private var spamSearchResults = emptySet<Pair<Long, Long>>()
     private var bus: EventBus? = null
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -531,9 +536,11 @@ class MainActivity : SimpleActivity() {
         if (text.length >= 2) {
             ensureBackgroundThread {
                 val searchQuery = "%$text%"
-                val messages = messagesDB.getMessagesWithText(searchQuery)
+                val messages = searchMessages(text)
                 val conversations = conversationsDB.getConversationsWithText(searchQuery)
+                val spam = spamDB.getSpam().map { it.id to it.threadId }.toSet()
                 if (text == lastSearchedText) {
+                    spamSearchResults = messages.map { it.id to it.threadId }.filter { it in spam }.toSet()
                     showSearchResults(messages, conversations, text)
                 }
             }
@@ -580,9 +587,10 @@ class MainActivity : SimpleActivity() {
                 showCurrentYear = true
             )
 
+            val isSpam = (message.id to message.threadId) in spamSearchResults
             val searchResult = SearchResult(
                 messageId = message.id,
-                title = recipient,
+                title = if (isSpam) "$recipient · ${getString(R.string.spam)}" else recipient,
                 snippet = message.body,
                 date = date,
                 threadId = message.threadId,
@@ -599,6 +607,12 @@ class MainActivity : SimpleActivity() {
             if (currAdapter == null) {
                 SearchResultsAdapter(this, searchResults, binding.searchResultsList, searchedText) {
                     hideKeyboard()
+                    val result = it as SearchResult
+                    if ((result.messageId to result.threadId) in spamSearchResults) {
+                        startActivity(Intent(this, SpamActivity::class.java))
+                        return@SearchResultsAdapter
+                    }
+
                     Intent(this, ThreadActivity::class.java).apply {
                         putExtra(THREAD_ID, (it as SearchResult).threadId)
                         putExtra(THREAD_TITLE, it.title)
