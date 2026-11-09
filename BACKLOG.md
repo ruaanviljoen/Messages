@@ -1,27 +1,28 @@
 # Backlog
 
-Notes from testing the debug build on a Samsung Galaxy S26. Nothing here has been started yet.
+Notes from testing the debug build on a Samsung Galaxy S26.
 
-## Spam folder lists single messages instead of conversations
+## Fixed, waiting for testing on the phone
 
-In the inbox, messages from one sender (for example Vodacom) are grouped into one conversation under the sender's name. The Spam folder instead lists every message separately.
+- The Spam folder lists conversations instead of single messages, and opening one shows the normal conversation screen with only its spam, instead of a pop-up.
+- The main screen shows its saved list straight away on start, and shows a loading indicator while the list is still empty.
 
-Cause: the Spam folder screen (`SpamActivity`) was built as a flat list of messages, reusing the search results list.
+## Proposal: spam filter settings
 
-Proposed fix: list Spam by conversation, the way the recycle bin does, with the sender's name as the title.
+At the moment, everything about the spam filter is in the menu of the keywords screen: running the filter, the action, the saved-contacts check box and the exempt numbers. The labels are cut off, and the menu mixes actions with settings.
 
-## Opening a Spam message shows a pop-up instead of the conversation
+Proposal: move the settings to a "Spam filter" section in the main Settings screen, like the existing sections for notifications, archived messages and the recycle bin. Each row uses a kind of row the Settings screen already has.
 
-Tapping a message in Spam opens a dialog with the text and "Restore to inbox" and "Delete" buttons. It should open the normal conversation screen.
+| Row | Kind of row | What it does |
+|---|---|---|
+| Spam keywords | Plain row, like "Manage blocked numbers" | Opens the keyword list. That screen's menu keeps only add, import and export. |
+| When a message matches | Row with its current value underneath, like "Font size" | Opens a choice between "Move it to Spam" and "Delete it". |
+| Filter messages from saved contacts | Switch, like "Send on enter" | Off by default. |
+| Numbers never filtered | Plain row | Opens a list screen like the keyword list, with one number or sender name per row, which can be added, edited and deleted. This replaces the current text box. |
+| Run filter on existing messages | Plain row | Works out the counts and asks before applying, as now. |
 
-Cause: the same design choice as above. A dialog avoided changing the conversation screen.
+The section would sit directly below "General", where the blocked numbers and blocked keywords rows are now. "Manage blocked keywords" would move into the new section as "Spam keywords". Changing any of these settings would still offer to run the filter with counts, as it does now.
 
-Proposed fix: open the normal conversation screen in a Spam mode that shows only that conversation's spam, with restore and delete as message actions. The recycle bin already uses this pattern.
+Alternative: a separate "Spam filter" screen with the same rows, opened from one row in Settings. It keeps the main Settings screen shorter, but adds a screen, and Fossify keeps most settings on the single Settings screen. I suggest the section.
 
-## The main screen is empty for a while when the app opens
-
-When the app opens, the conversation list stays empty for some time, with no loading indicator. Fossify Messages showed the list straight away.
-
-Likely cause, not yet confirmed: before showing the saved list, the app now works out which conversations to hide or give a different snippet because of spam (`withoutSpamOnly`). For every conversation whose newest message is spam, it queries the phone's message store. After a filter run there can be many such conversations, so the first display waits for all of them. Fossify shows a loading message only on the very first run, so nothing appears in the meantime.
-
-Proposed fix: measure it first. Then show the saved list straight away using only the Spam database, which is fast, and do the slower checks afterwards. Show a loading indicator whenever the list is still empty while loading.
+Messages+ also put its spam settings in a section of the main Settings screen.
