@@ -166,6 +166,7 @@ import org.fossify.messages.helpers.IS_SPAM
 import org.fossify.messages.helpers.getSpamDates
 import org.fossify.messages.helpers.restoreConversationFromSpam
 import org.fossify.messages.helpers.restoreFromSpam
+import org.fossify.messages.helpers.spamDB
 import org.fossify.messages.helpers.MESSAGES_LIMIT
 import org.fossify.messages.helpers.PICK_CONTACT_INTENT
 import org.fossify.messages.helpers.PICK_DOCUMENT_INTENT
@@ -292,7 +293,10 @@ class ThreadActivity : SimpleActivity() {
 
         isActivityVisible = true
 
-        notificationManager.cancel(threadId.hashCode())
+        // the Spam view leaves the conversation's other messages and their notification alone
+        if (!isSpam) {
+            notificationManager.cancel(threadId.hashCode())
+        }
 
         ensureBackgroundThread {
             val newConv = conversationsDB.getConversationWithThreadId(threadId)
@@ -311,7 +315,9 @@ class ThreadActivity : SimpleActivity() {
                 }
             }
 
-            markThreadMessagesRead(threadId)
+            if (!isSpam) {
+                markThreadMessagesRead(threadId)
+            }
         }
 
         val bottomBarColor = getBottomBarColor()
@@ -364,20 +370,20 @@ class ThreadActivity : SimpleActivity() {
         binding.threadToolbar.menu.apply {
             findItem(R.id.delete).isVisible = threadItems.isNotEmpty() && !isSpam
             findItem(R.id.restore).isVisible = threadItems.isNotEmpty() && (isRecycleBin || isSpam)
-            findItem(R.id.archive).isVisible =
-                threadItems.isNotEmpty() && conversation?.isArchived == false && !isRecycleBin && archiveAvailable
-            findItem(R.id.unarchive).isVisible =
-                threadItems.isNotEmpty() && conversation?.isArchived == true && !isRecycleBin && archiveAvailable
+            findItem(R.id.archive).isVisible = threadItems.isNotEmpty() && conversation?.isArchived == false &&
+                !isRecycleBin && !isSpam && archiveAvailable
+            findItem(R.id.unarchive).isVisible = threadItems.isNotEmpty() && conversation?.isArchived == true &&
+                !isRecycleBin && !isSpam && archiveAvailable
             findItem(R.id.rename_conversation).isVisible =
-                participants.size > 1 && conversation != null && !isRecycleBin
+                participants.size > 1 && conversation != null && !isRecycleBin && !isSpam
             findItem(R.id.conversation_details).isVisible = conversation != null && !isRecycleBin
             findItem(R.id.block_number).title =
                 getString(org.fossify.commons.R.string.block_number)
             findItem(R.id.block_number).isVisible = !isRecycleBin
             findItem(R.id.dial_number).isVisible =
                 participants.size == 1 && !isSpecialNumber() && !isRecycleBin
-            findItem(R.id.manage_people).isVisible = !isSpecialNumber() && !isRecycleBin
-            findItem(R.id.mark_as_unread).isVisible = threadItems.isNotEmpty() && !isRecycleBin
+            findItem(R.id.manage_people).isVisible = !isSpecialNumber() && !isRecycleBin && !isSpam
+            findItem(R.id.mark_as_unread).isVisible = threadItems.isNotEmpty() && !isRecycleBin && !isSpam
 
             // allow saving number in cases when we don't have it stored yet
             findItem(R.id.add_number_to_contact).isVisible =
@@ -495,7 +501,7 @@ class ThreadActivity : SimpleActivity() {
 
             val cachedMessagesCode = messages.hashCode()
             if (!isRecycleBin) {
-                messages = getMessages(threadId)
+                messages = getMessages(threadId, limit = messagesLimit())
                 if (config.useRecycleBin) {
                     val recycledMessages = messagesDB.getThreadMessagesFromRecycleBin(threadId)
                     messages = messages.filterNotInByKey(recycledMessages) { it.getStableId() }
@@ -751,6 +757,7 @@ class ThreadActivity : SimpleActivity() {
                 }
             }
         }
+        forgetDeletedSpam(messagesToRemove, restored = fromRecycleBin)
         updateLastConversationMessage(threadId)
 
         // move all scheduled messages to a temporary thread when there are no real messages left
@@ -1887,7 +1894,7 @@ class ThreadActivity : SimpleActivity() {
         val lastMaxId = messageSnapshot.filterNot { it.isScheduled }.maxByOrNull { it.id }?.id ?: 0L
         val providerParticipantsChanged = reconcileProviderParticipants()
         val newThreadId = getThreadId(participants.getAddresses().toSet())
-        val newMessages = getMessages(newThreadId, includeScheduledMessages = false)
+        val newMessages = getMessages(newThreadId, includeScheduledMessages = false, limit = messagesLimit())
         if (messageSnapshot.isNotEmpty() && messageSnapshot.all { it.isScheduled } && newMessages.isNotEmpty()) {
             // update scheduled messages with real thread id
             threadId = newThreadId
@@ -2160,6 +2167,16 @@ class ThreadActivity : SimpleActivity() {
         binding.messageHolder.attachmentPickerHolder.showWithAnimation()
         animateAttachmentButton(rotation = -135f)
     }
+
+    // Messages deleted in the Spam view leave Spam; restored ones already have their entry updated.
+    private fun forgetDeletedSpam(messages: List<Message>, restored: Boolean) {
+        if (isSpam && !restored) {
+            messages.forEach { spamDB.delete(it.id, it.isMMS) }
+        }
+    }
+
+    // The Spam view loads the whole conversation, because its spam can be older than the newest page of messages.
+    private fun messagesLimit() = if (isSpam) Int.MAX_VALUE else MESSAGES_LIMIT
 
     private fun maybeSetupRecycleBinView() {
         if (isRecycleBin || isSpam) {

@@ -32,23 +32,30 @@ fun Context.deleteConversationSpam(threadId: Long) {
 /** The conversations that have spam, each with its newest spam message as the snippet. Run it off the main thread. */
 fun Context.getSpamConversations(): ArrayList<Conversation> {
     return spamDB.getSpam().groupBy { it.threadId }.mapNotNullTo(ArrayList()) { (threadId, entries) ->
-        val newest = entries.maxBy { it.date }
+        val newest = entries.sortedByDescending { it.date }.firstNotNullOfOrNull { entry ->
+            getSpamText(entry)?.let { it to entry.date }
+        } ?: return@mapNotNullTo null
         val conversation = conversationsDB.getConversationWithThreadId(threadId)
             ?: getConversations(threadId).firstOrNull()
-        val text = getSpamText(newest)
-        if (conversation == null || text == null) null else conversation.copy(snippet = text, date = newest.date)
+        conversation?.copy(snippet = newest.first, date = newest.second)
     }
 }
 
-// The text of a message in Spam, or null if the message is gone.
+// The text of a message in Spam, or null if it is gone or its id now belongs to another message.
 private fun Context.getSpamText(entry: SpamMessage): String? {
-    if (entry.isMMS) {
-        return getMmsTexts(entry.id)[entry.id].orEmpty()
-    }
-
     var text: String? = null
-    queryCursor(Sms.CONTENT_URI, arrayOf(Sms.BODY), "${Sms._ID} = ${entry.id}") {
-        text = it.getStringValue(Sms.BODY).orEmpty()
+    if (entry.isMMS) {
+        queryCursor(Mms.CONTENT_URI, arrayOf(Mms.DATE), "${Mms._ID} = ${entry.id}") {
+            if (it.getInt(0) == entry.date) {
+                text = getMmsTexts(entry.id)[entry.id].orEmpty()
+            }
+        }
+    } else {
+        queryCursor(Sms.CONTENT_URI, arrayOf(Sms.DATE, Sms.BODY), "${Sms._ID} = ${entry.id}") {
+            if ((it.getLong(0) / MILLIS_PER_SECOND).toInt() == entry.date) {
+                text = it.getStringValue(Sms.BODY).orEmpty()
+            }
+        }
     }
     return text
 }
