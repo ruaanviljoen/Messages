@@ -17,6 +17,7 @@ import org.fossify.messages.databinding.DialogAddBlockedKeywordBinding
 import org.fossify.messages.databinding.DialogFilterRuleBinding
 import org.fossify.messages.helpers.SPAM_ACTION_DELETE
 import org.fossify.messages.helpers.SPAM_ACTION_MOVE
+import org.fossify.messages.helpers.addContactPicker
 import org.fossify.messages.helpers.filterRulesDB
 import org.fossify.messages.models.FilterFolder
 import org.fossify.messages.models.FilterRule
@@ -56,6 +57,7 @@ class FilterRuleDialog(
             // Spam never notifies
             filterRuleNotify.beGoneIf(isSpam)
             filterRuleAction.setOnClickListener { chooseAction() }
+            filterRuleSenderHint.addContactPicker(activity) { filterRuleSender.setText(it) }
         }
         showAction()
 

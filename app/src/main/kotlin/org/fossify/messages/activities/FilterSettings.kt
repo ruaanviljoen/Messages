@@ -12,6 +12,7 @@ import org.fossify.messages.databinding.DialogAddBlockedKeywordBinding
 import org.fossify.messages.dialogs.FilterRuleDialog
 import org.fossify.messages.dialogs.FilterRunDialog
 import org.fossify.messages.extensions.config
+import org.fossify.messages.helpers.addContactPicker
 import org.fossify.messages.helpers.getSpamRule
 
 // The "Filters" section of the settings: the Spam rule, its exempt numbers, the other rules and running the filters.
@@ -47,6 +48,11 @@ private fun SimpleActivity.editSpamExemptNumbers() {
         addBlockedKeywordHint.hint = getString(R.string.spam_exempt_numbers_hint)
         addBlockedKeywordEdittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
         addBlockedKeywordEdittext.setText(config.spamExemptNumbers.sorted().joinToString("\n"))
+        // a chosen contact's number is added as a new line
+        addBlockedKeywordHint.addContactPicker(this@editSpamExemptNumbers) { number ->
+            val text = addBlockedKeywordEdittext.value.trimEnd()
+            addBlockedKeywordEdittext.setText(if (text.isEmpty()) number else "$text\n$number")
+        }
     }
     getAlertDialogBuilder()
         .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->

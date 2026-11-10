@@ -46,4 +46,5 @@
     <string name="open_spam">Open Spam</string>
     <string name="open_recycle_bin">Open recycle bin</string>
     <string name="open_archived_conversations">Open archived conversations</string>
+    <string name="choose_contact">Choose a contact</string>
 </resources>
