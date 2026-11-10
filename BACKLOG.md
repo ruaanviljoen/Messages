@@ -10,6 +10,14 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 - Search results can be selected with press and hold (copy, share, delete, select all), acting on the selected messages only.
 - Search results stay after rotating the phone.
 
+## Export and import the whole spam filter setup
+
+At the moment only the keywords can be exported and imported. The exempt numbers, the action (move to Spam or delete) and the "Filter messages from saved contacts" setting are not included, so moving to a new phone means setting them up again by hand.
+
+Proposal: one export file that holds the keywords, the exempt numbers and both settings, and an import that restores all of them. Keep reading the current keywords-only file, so older exports still import.
+
+The Spam list itself cannot usefully move to another phone, because restored messages get new ids. After switching phones, run "Run filter on existing messages" once to rebuild Spam from the keywords. Messages that were restored from Spam on the old phone will be filtered again.
+
 ## Proposal: spam filter settings
 
 At the moment, everything about the spam filter is in the menu of the keywords screen: running the filter, the action, the saved-contacts check box and the exempt numbers. The labels are cut off, and the menu mixes actions with settings.
