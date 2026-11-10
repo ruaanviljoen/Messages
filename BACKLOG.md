@@ -10,6 +10,14 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 - Search results can be selected with press and hold (copy, share, delete, select all), acting on the selected messages only.
 - Search results stay after rotating the phone.
 
+## To investigate: deleting a conversation bypasses the recycle bin
+
+Reported from the phone: with the recycle bin turned on, deleting a conversation removed it completely and nothing appeared in the recycle bin.
+
+First look at the code (not yet confirmed on the phone): deleting whole conversations from the inbox list calls `deleteConversation()`, which deletes the conversation's messages straight from the phone's message store and does not check the recycle bin setting. Only messages deleted inside a conversation go to the recycle bin. If that is right, this is how Fossify itself behaves, not something this fork changed, and the deleted messages cannot be recovered in the app.
+
+To decide: whether deleting a conversation should move its messages to the recycle bin when it is on, and whether to raise it with Fossify.
+
 ## Export and import the whole spam filter setup
 
 At the moment only the keywords can be exported and imported. The exempt numbers, the action (move to Spam or delete) and the "Filter messages from saved contacts" setting are not included, so moving to a new phone means setting them up again by hand.
