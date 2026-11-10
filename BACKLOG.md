@@ -133,3 +133,24 @@ Expected behavior: The search stays open with the same text, and the results are
 Actual behavior: The text stays in the search box, but the results disappear and the screen asks you to type something to search. Typing more letters does not bring results back. The search only works again after closing it and opening it again.
 
 Additional information: Rotating recreates MainActivity. The search field restores its text, but `MySearchMenu` in Fossify Commons does not save that the search was open (`isSearchOpen` is a plain field). When the restored text triggers `onSearchTextChangedListener`, `searchTextChanged()` returns early because the search counts as closed. I have a small fix in Messages that reopens the search after a restore and runs it again (`onRestoreInstanceState` in MainActivity). I am happy to open a pull request for it, or to fix it in `MySearchMenu` instead if you prefer, since that would cover the other Fossify apps with a search bar.
+
+## Upstream contribution: open the contact from the conversation title
+
+- Branch: `feat/open-contact-from-title` in this fork, based on Fossify's `main`. Two commits: the feature (`feat: open the contact by tapping the conversation title`) and a review fix (`fix: look the contact up off the main thread and ignore repeated taps`), with an "Added" line in `CHANGELOG.md`. Squash them into one commit before opening the pull request.
+- The work branch has the same code through merges of this branch, so a later merge from Fossify is clean if Fossify takes it unchanged. If Fossify changes it, keep Fossify's version of `openContactOrDetails` in `ThreadActivity.kt`.
+- Related Fossify issue: #702, "Contact icon on touch should open contact (as in Phone)", labelled "feature request" but not "help wanted". Fossify closes pull requests for issues without "help wanted", so ask first.
+- Not included: tapping the contact picture in the conversation list (what #702 asks for), because it interferes with selecting conversations by press and hold; and a ripple or other hint that the title can be tapped.
+
+### Steps
+
+1. Test on the phone: a conversation with a saved contact, a private contact from Fossify Contacts, an unsaved number, a group, and the recycle bin (where tapping does nothing). Check every theme and the largest font size.
+2. Post the comment below on #702 and wait for a maintainer to label it `help wanted`, or to say how they want it.
+3. Squash the branch into one commit, rebase it on Fossify's latest `main`, and add the issue number to the changelog line, for example `([#702])` with a link at the bottom of the file.
+4. Open the pull request from `feat/open-contact-from-title` to FossifyOrg/Messages `main` and check that CI passes.
+
+### Draft comment for #702
+
+I would like to work on this. I have a small change that opens the contact when you tap the title of a conversation: for a one-to-one conversation with a saved contact (private contacts from Fossify Contacts included) it opens the contact, and for groups and unsaved numbers it opens the conversation details, where each participant can be opened. At the moment the contact can only be reached through Menu > Conversation details.
+
+It does not yet cover tapping the contact picture in the conversation list, which is what this issue asks for. That one needs a decision about how it should behave while conversations are being selected with press and hold. Would you accept a pull request for the title first, and should the picture be part of it?
+
