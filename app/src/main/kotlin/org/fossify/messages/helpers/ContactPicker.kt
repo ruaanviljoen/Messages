@@ -9,6 +9,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.material.textfield.TextInputLayout
 import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.messages.R
@@ -21,8 +22,14 @@ fun ComponentActivity.pickContactNumber(callback: (String) -> Unit) {
         launcher?.unregister()
         val uri = it.data?.data ?: return@register
         ensureBackgroundThread {
-            val number = contentResolver.query(uri, arrayOf(Phone.NUMBER), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) cursor.getString(0) else null
+            // a picker that does not grant access to its result must not crash the app
+            val number = try {
+                contentResolver.query(uri, arrayOf(Phone.NUMBER), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
+            } catch (e: SecurityException) {
+                showErrorToast(e)
+                null
             }
             if (!number.isNullOrBlank()) {
                 runOnUiThread { callback(number) }
