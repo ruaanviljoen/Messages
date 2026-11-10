@@ -39,4 +39,10 @@
         <item quantity="one">Delete this rule? The folder \"%1$s\" keeps its %2$d message.</item>
         <item quantity="other">Delete this rule? The folder \"%1$s\" keeps its %2$d messages.</item>
     </plurals>
+    <string name="filter_unread">Unread</string>
+    <string name="filter_read">Read</string>
+    <string name="open_folder">Open %s</string>
+    <string name="open_spam">Open Spam</string>
+    <string name="open_recycle_bin">Open recycle bin</string>
+    <string name="open_archived_conversations">Open archived conversations</string>
 </resources>

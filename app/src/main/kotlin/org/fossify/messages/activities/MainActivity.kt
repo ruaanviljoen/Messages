@@ -64,6 +64,7 @@ import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.helpers.FOLDER_ID
+import org.fossify.messages.helpers.ReadFilterChips
 import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
@@ -85,7 +86,7 @@ import org.greenrobot.eventbus.ThreadMode
 
 // Folders of the filter rules in the main menu: their group, and their position after Spam.
 private const val FOLDERS_MENU_GROUP = 1
-private const val FOLDERS_MENU_ORDER = 20
+private const val FOLDERS_MENU_ORDER = 40
 
 class MainActivity : SimpleActivity() {
     override var isSearchBarEnabled = true
@@ -99,6 +100,10 @@ class MainActivity : SimpleActivity() {
     // The folders of search results that are in a folder, by message id and type, and the folders' names.
     private var searchResultFolders = emptyMap<Pair<Long, Boolean>, Long>()
     private var folderNames = emptyMap<Long, String>()
+
+    // The "Unread" and "Read" chips under the search bar narrow the conversation list.
+    private var lastConversations = ArrayList<Conversation>()
+    private val readFilter by lazy { ReadFilterChips(binding.readFilter) { setupConversations(lastConversations) } }
     private var bus: EventBus? = null
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -212,7 +217,8 @@ class MainActivity : SimpleActivity() {
 
         binding.mainMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
             if (menuItem.groupId == FOLDERS_MENU_GROUP) {
-                openFolder(menuItem.itemId.toLong(), menuItem.title.toString())
+                hideKeyboard()
+                startActivity(menuItem.intent)
                 return@setOnMenuItemClickListener true
             }
 
@@ -244,7 +250,11 @@ class MainActivity : SimpleActivity() {
             runOnUiThread {
                 binding.mainMenu.requireToolbar().menu.apply {
                     removeGroup(FOLDERS_MENU_GROUP)
-                    folders.forEach { add(FOLDERS_MENU_GROUP, it.id.toInt(), FOLDERS_MENU_ORDER, it.name) }
+                    folders.forEach {
+                        val title = getString(R.string.open_folder, it.name)
+                        add(FOLDERS_MENU_GROUP, it.id.toInt(), FOLDERS_MENU_ORDER, title).intent =
+                            FolderActivity.intent(this@MainActivity, it.id, it.name)
+                    }
                 }
             }
         }
@@ -273,6 +283,7 @@ class MainActivity : SimpleActivity() {
 
     private fun updateMenuColors() {
         binding.mainMenu.updateColors()
+        readFilter.updateColors()
     }
 
     private fun loadMessages() {
@@ -465,7 +476,8 @@ class MainActivity : SimpleActivity() {
         conversations: ArrayList<Conversation>,
         cached: Boolean = false,
     ) {
-        val sortedConversations = conversations
+        lastConversations = conversations
+        val sortedConversations = readFilter.apply(conversations)
             .sortedWith(
                 compareByDescending<Conversation> {
                     config.pinnedConversations.contains(it.threadId.toString())
