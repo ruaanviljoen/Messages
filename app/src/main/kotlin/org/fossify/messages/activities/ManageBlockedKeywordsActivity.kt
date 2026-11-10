@@ -21,7 +21,6 @@ import org.fossify.messages.R
 import org.fossify.messages.databinding.ActivityManageBlockedKeywordsBinding
 import org.fossify.messages.dialogs.AddBlockedKeywordDialog
 import org.fossify.messages.dialogs.ExportBlockedKeywordsDialog
-import org.fossify.messages.dialogs.FilterRunDialog
 import org.fossify.messages.dialogs.ManageBlockedKeywordsAdapter
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.toArrayList
@@ -34,15 +33,11 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
 
     private val binding by viewBinding(ActivityManageBlockedKeywordsBinding::inflate)
 
-    // Only the latest run of the spam filter is offered; older ones were worked out with outdated settings.
-    private var latestFilterRun = 0
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         updateBlockedKeywords()
         setupOptionsMenu()
-        binding.blockKeywordsToolbar.title = getString(R.string.spam_keywords)
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.manageBlockedKeywordsList))
         setupMaterialScrollListener(
@@ -156,7 +151,6 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
                 }
             )
             updateBlockedKeywords()
-            runSpamFilter()
         }
     }
 
@@ -199,7 +193,6 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
 
     override fun refreshItems() {
         updateBlockedKeywords()
-        runSpamFilter()
     }
 
     private fun updateBlockedKeywords() {
@@ -226,13 +219,6 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
     private fun addOrEditBlockedKeyword(keyword: String? = null) {
         AddBlockedKeywordDialog(this, keyword) {
             updateBlockedKeywords()
-            runSpamFilter()
         }
-    }
-
-    // Offers to run the filters over the messages already on the phone; only the latest offer is shown.
-    private fun runSpamFilter(showIfNoChanges: Boolean = false) {
-        val runNumber = ++latestFilterRun
-        FilterRunDialog(this, showIfNoChanges) { runNumber == latestFilterRun }
     }
 }

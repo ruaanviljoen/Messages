@@ -58,11 +58,10 @@ class FilterRunDialog(
             R.string.filter_run_delete to run.toDelete.size
         ).filter { it.second > 0 }.forEach { lines += getString(it.first, it.second) }
 
-        // Spam first, then the rules in the order they run, each named after its folder
-        val filters = listOf(getString(R.string.spam) to run.spamMatches) +
-            filterRulesDB.getRules().mapNotNull { rule ->
-                run.ruleMatches[rule.id]?.let { folders[rule.folderId].orEmpty() to it }
-            }
+        // the rules in the order they run, Spam first, each named after its folder
+        val filters = filterRulesDB.getRules().mapNotNull { rule ->
+            run.ruleMatches[rule.id]?.let { folders[rule.folderId].orEmpty() to it }
+        }
         val matching = filters.filter { it.second.total > 0 }
         if (matching.isNotEmpty()) {
             lines += ""

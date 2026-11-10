@@ -29,15 +29,14 @@ class FilterMatches {
 
 /**
  * What running the filters over the received messages on the phone would change: messages moving to a folder (Spam or
- * a rule's folder), back to the inbox, or deleted. Of the messages that move or are deleted, [spamMatches] and
- * [ruleMatches] (by rule id) count what each filter takes.
+ * a rule's folder), back to the inbox, or deleted. Of the messages that move or are deleted, [ruleMatches] counts
+ * what each rule takes, by rule id; the Spam rule is one of them.
  */
 data class FilterRun(
     val toFolders: List<FilteredMessage>,
     val toInbox: List<FilteredMessage>,
     val toDelete: List<FilteredMessage>,
     val stale: List<FilteredMessage>,
-    val spamMatches: FilterMatches,
     val ruleMatches: Map<Long, FilterMatches>
 ) {
     val hasChanges get() = toFolders.isNotEmpty() || toInbox.isNotEmpty() || toDelete.isNotEmpty()
@@ -56,7 +55,6 @@ fun Context.planFilterRun(): FilterRun {
     val toInbox = ArrayList<FilteredMessage>()
     val toDelete = ArrayList<FilteredMessage>()
     val stale = ArrayList<FilteredMessage>()
-    val spamMatches = FilterMatches()
     val ruleMatches = HashMap<Long, FilterMatches>()
 
     forEachReceivedMessage { message, address, body ->
@@ -70,8 +68,7 @@ fun Context.planFilterRun(): FilterRun {
             return@forEachReceivedMessage
         }
 
-        val keywords = filter.spam.findKeywords(address, body)
-        val result = if (keywords.isNotEmpty()) filter.spamResult() else filter.filterByRules(address, body)
+        val result = filter.filter(address, body)
         when {
             result == null -> if (entry != null) toInbox += entry
             result.deletes -> toDelete += message
@@ -80,17 +77,12 @@ fun Context.planFilterRun(): FilterRun {
         }
 
         // counted only when the message changes, so messages already in their folder are not reported again
-        val rule = result?.rule
-        when {
-            keywords.isNotEmpty() -> spamMatches.add(keywords)
-            rule != null -> ruleMatches.getOrPut(rule.id) { FilterMatches() }
-                .add(findSpamKeywords(body, filter.ruleKeywords(rule)))
-        }
+        result?.let { ruleMatches.getOrPut(it.rule.id) { FilterMatches() }.add(it.keywords) }
     }
 
     // An entry not seen above is stale only if its message is really gone, not merely missed by a failed read.
     stale += entries.values.filterNot { messageExists(it) }
-    return FilterRun(toFolders, toInbox, toDelete, stale, spamMatches, ruleMatches)
+    return FilterRun(toFolders, toInbox, toDelete, stale, ruleMatches)
 }
 
 /** Applies a run worked out by [planFilterRun]. Run it off the main thread. */

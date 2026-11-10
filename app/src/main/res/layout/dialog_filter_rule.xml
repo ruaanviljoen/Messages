@@ -12,15 +12,15 @@
         android:paddingTop="@dimen/activity_margin">
 
         <org.fossify.commons.views.MyTextInputLayout
-            android:id="@+id/filter_rule_folder_hint"
+            android:id="@+id/filter_rule_action_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="@dimen/activity_margin"
             android:layout_marginBottom="@dimen/activity_margin"
-            android:hint="@string/filter_rule_folder">
+            android:hint="@string/filter_rule_action">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/filter_rule_folder"
+                android:id="@+id/filter_rule_action"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:cursorVisible="false"
@@ -67,6 +67,13 @@
                 android:textSize="@dimen/normal_text_size" />
 
         </org.fossify.commons.views.MyTextInputLayout>
+
+        <org.fossify.commons.views.MyAppCompatCheckbox
+            android:id="@+id/filter_rule_apply_to_contacts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/activity_margin"
+            android:text="@string/apply_to_saved_contacts" />
 
         <org.fossify.commons.views.MyAppCompatCheckbox
             android:id="@+id/filter_rule_notify"

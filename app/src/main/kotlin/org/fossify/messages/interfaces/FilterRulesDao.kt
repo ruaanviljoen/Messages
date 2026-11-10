@@ -11,8 +11,12 @@ import org.fossify.messages.models.FilterRule
 
 @Dao
 interface FilterRulesDao {
-    @Query("SELECT * FROM filter_rules ORDER BY position")
+    // the Spam rule first, then the others in order
+    @Query("SELECT * FROM filter_rules ORDER BY is_spam DESC, position")
     fun getRules(): List<FilterRule>
+
+    @Query("SELECT * FROM filter_rules WHERE is_spam = 1 LIMIT 1")
+    fun getSpamRule(): FilterRule?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertRule(rule: FilterRule): Long
@@ -28,4 +32,17 @@ interface FilterRulesDao {
 
     @Insert
     fun insertFolder(folder: FilterFolder): Long
+
+    @Query("SELECT COUNT(*) FROM filter_rules WHERE folder_id = :folderId")
+    fun countRules(folderId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM spam_messages WHERE folder_id = :folderId AND restored = 0")
+    fun countMessages(folderId: Long): Int
+
+    // Folders that no rule moves messages to and that hold no messages are no longer needed.
+    @Query(
+        "DELETE FROM folders WHERE id NOT IN (SELECT folder_id FROM filter_rules) " +
+            "AND id NOT IN (SELECT folder_id FROM spam_messages WHERE restored = 0)"
+    )
+    fun deleteUnusedFolders()
 }

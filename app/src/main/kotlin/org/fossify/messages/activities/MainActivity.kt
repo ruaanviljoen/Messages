@@ -236,9 +236,10 @@ class MainActivity : SimpleActivity() {
         updateFolderMenuItems()
     }
 
-    // The folders of the filter rules appear in the menu after Spam.
+    // The folders of the filter rules appear in the menu after Spam; folders with no rules and no messages are removed.
     private fun updateFolderMenuItems() {
         ensureBackgroundThread {
+            filterRulesDB.deleteUnusedFolders()
             val folders = filterRulesDB.getFolders()
             runOnUiThread {
                 binding.mainMenu.requireToolbar().menu.apply {

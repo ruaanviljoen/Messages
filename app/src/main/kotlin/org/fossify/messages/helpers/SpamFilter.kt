@@ -1,8 +1,6 @@
 package org.fossify.messages.helpers
 
 import android.content.Context
-import org.fossify.commons.helpers.ContactLookupResult
-import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.messages.databases.FilterDatabase
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.deleteMessage
@@ -31,31 +29,6 @@ private val PHONE_NUMBER = Regex("""^[+\d\s()-]*\d[+\d\s()-]*$""")
  * ignoring case.
  */
 fun String.toSenderKey() = trim().let { if (PHONE_NUMBER.matches(it)) it.toComparableNumber() else it.lowercase() }
-
-/** The spam filter's current settings, read once. Reuse one instance when checking many messages. */
-class SpamFilter(private val context: Context) {
-    private val keywords = context.config.blockedKeywords
-    private val exemptNumbers = context.config.spamExemptNumbers.map { it.toSenderKey() }.toSet()
-    private val filterSavedContacts = context.config.filterSavedContacts
-    private val savedContacts = HashMap<String, Boolean>()
-    val deletes = context.config.spamAction == SPAM_ACTION_DELETE
-
-    /** The keywords that make a message from [address] spam; empty when it isn't spam. */
-    fun findKeywords(address: String, body: String): List<String> {
-        val found = findSpamKeywords(body, keywords)
-        return if (found.isEmpty() || isExempt(address)) emptyList() else found
-    }
-
-    fun isSpam(address: String, body: String) = findKeywords(address, body).isNotEmpty()
-
-    private fun isExempt(address: String): Boolean {
-        return address.toSenderKey() in exemptNumbers || (!filterSavedContacts && isSavedContact(address))
-    }
-
-    private fun isSavedContact(address: String) = savedContacts.getOrPut(address) {
-        SimpleContactsHelper(context).existsSync(address) == ContactLookupResult.Found
-    }
-}
 
 fun Message.toFilteredMessage(restored: Boolean = false, folderId: Long = SPAM_FOLDER_ID) =
     FilteredMessage(id, isMMS, threadId, date, restored, folderId)

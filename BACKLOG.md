@@ -10,7 +10,16 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 - Search results can be selected with press and hold (copy, share, delete, select all), acting on the selected messages only.
 - Search results stay after rotating the phone.
 
-## In progress: filter rules and folders
+## In progress: Spam as a pinned rule, one rule dialog, folder clean-up
+
+Agreed changes to the design below:
+
+- Spam is stored as a rule like the others, pinned first: it always runs first, cannot be moved or deleted, and its folder is Spam. Existing Spam keywords and settings become this rule.
+- One dialog edits every rule, with the same fields: Action ("Move to" a folder, or "Delete", which only the Spam rule offers for now), sender, keywords, "Apply to saved contacts" (per rule, off by default) and "Show notifications".
+- Settings > Filters: Spam filter rule, Filter rules, Numbers never treated as spam (Spam only), Run filters on existing messages. The separate keyword list screen is no longer used.
+- Deleting the last rule for a folder also deletes the folder when it is empty, and says so in the confirmation. A folder with no rules and no messages is removed automatically.
+
+## Filter rules and folders (built)
 
 Agreed design:
 

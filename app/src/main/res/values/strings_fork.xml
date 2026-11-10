@@ -4,12 +4,7 @@
     <string name="spam">Spam</string>
     <string name="no_messages_in_folder">No messages in this folder</string>
     <string name="filters">Filters</string>
-    <string name="spam_keywords">Spam keywords</string>
     <string name="run_filters">Run filters on existing messages</string>
-    <string name="spam_action">When a message is spam</string>
-    <string name="spam_action_move">Move it to Spam</string>
-    <string name="spam_action_delete">Delete it</string>
-    <string name="filter_saved_contacts">Filter messages from saved contacts</string>
     <string name="spam_exempt_numbers">Numbers never treated as spam</string>
     <string name="spam_exempt_numbers_hint">One number per line</string>
     <string name="checking_messages">Checking the messages on the phone…</string>
@@ -19,11 +14,10 @@
     <string name="add_filter_rule">Add rule</string>
     <string name="edit_filter_rule">Edit rule</string>
     <string name="no_filter_rules">No filter rules yet. A rule moves messages from a sender, or with certain words, to a folder of your choice.</string>
-    <string name="filter_rule_folder">Folder</string>
     <string name="filter_rule_sender">Sender (number or name, optional)</string>
     <string name="filter_rule_keywords">Keywords, one per line (optional)</string>
     <string name="filter_rule_notify">Show notifications</string>
-    <string name="filter_rule_needs_folder">Choose a folder</string>
+    <string name="filter_rule_needs_folder">Choose an action</string>
     <string name="filter_rule_needs_sender_or_keyword">Enter a sender or at least one keyword</string>
     <string name="new_folder">New folder</string>
     <string name="folder_name">Folder name</string>
@@ -35,4 +29,14 @@
     <string name="filter_run_matches">Messages matching filters:</string>
     <string name="filter_run_filter">%1$s (%2$d)</string>
     <string name="filter_run_keyword">\"%1$s\": %2$d</string>
+    <string name="filter_rule_action">Action</string>
+    <string name="move_to">Move to %s</string>
+    <string name="spam_filter_rule">Spam filter rule</string>
+    <string name="apply_to_saved_contacts">Apply to saved contacts</string>
+    <string name="delete_filter_rule">Delete this rule?</string>
+    <string name="delete_filter_rule_and_folder">Delete this rule? The folder \"%s\" is empty and will be removed too.</string>
+    <plurals name="delete_filter_rule_keep_folder">
+        <item quantity="one">Delete this rule? The folder \"%1$s\" keeps its %2$d message.</item>
+        <item quantity="other">Delete this rule? The folder \"%1$s\" keeps its %2$d messages.</item>
+    </plurals>
 </resources>

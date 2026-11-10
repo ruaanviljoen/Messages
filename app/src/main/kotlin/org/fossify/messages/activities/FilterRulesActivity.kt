@@ -68,7 +68,8 @@ class FilterRulesActivity : SimpleActivity() {
 
     private fun loadRules() {
         ensureBackgroundThread {
-            val rules = ArrayList(filterRulesDB.getRules())
+            // the Spam rule is pinned and edited from the settings
+            val rules = ArrayList(filterRulesDB.getRules().filterNot { it.isSpam })
             val folderNames = getFolderNames()
             runOnUiThread {
                 (binding.manageBlockedKeywordsList.adapter as? FilterRulesAdapter)?.detach()

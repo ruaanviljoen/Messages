@@ -153,7 +153,8 @@ class Config(context: Context) : BaseConfig(context) {
         set(keepConversationsArchived) = prefs.edit()
             .putBoolean(KEEP_CONVERSATIONS_ARCHIVED, keepConversationsArchived).apply()
 
-    // Spam filter. The blocked keywords above are its keywords.
+    // Spam filter. The Spam rule is created once from the blocked keywords, the action and the saved-contacts setting;
+    // after that it is stored with the other filter rules. The exempt numbers stay here.
     var spamAction: Int
         get() = prefs.getInt(SPAM_ACTION, SPAM_ACTION_MOVE)
         set(spamAction) = prefs.edit().putInt(SPAM_ACTION, spamAction).apply()

@@ -1,8 +1,11 @@
 package org.fossify.messages.helpers
 
 import android.content.Context
+import org.fossify.commons.helpers.ContactLookupResult
+import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.messages.R
 import org.fossify.messages.databases.FilterDatabase
+import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.markMessageRead
 import org.fossify.messages.models.FilterRule
 import org.fossify.messages.models.Message
@@ -11,14 +14,16 @@ import org.fossify.messages.models.SPAM_FOLDER_ID
 val Context.filterRulesDB get() = FilterDatabase.getInstance(this).FilterRulesDao()
 
 /**
- * What the filters do with a message: move it to [folderId] ([SPAM_FOLDER_ID] for Spam), or delete it ([deletes], Spam
- * only). [rule] is the rule that matched, null for Spam. [notifies] tells whether a notification is still shown.
+ * What the filters do with a message: move it to [folderId] ([SPAM_FOLDER_ID] for Spam), or delete it ([deletes]).
+ * [rule] is the rule that matched and [keywords] the keywords of it that the message contains. [notifies] tells whether
+ * a notification is still shown.
  */
 data class FilterResult(
     val folderId: Long,
+    val rule: FilterRule,
+    val keywords: List<String>,
     val deletes: Boolean = false,
-    val notifies: Boolean = false,
-    val rule: FilterRule? = null
+    val notifies: Boolean = false
 )
 
 /** Whether a rule with this sender and these keywords matches a message. A rule with neither matches nothing. */
@@ -33,27 +38,55 @@ fun ruleMatches(sender: String, keywords: List<String>, address: String, body: S
 }
 
 /**
- * The spam filter and the filter rules, read once. Spam runs first; then the rules run in order and the first one
- * that matches decides the folder. Reuse one instance when checking many messages. Create it off the main thread.
+ * The Spam rule, created from the Spam settings the first time it is needed. Run it off the main thread.
  */
-class MessageFilter(context: Context) {
-    val spam = SpamFilter(context)
-    val rules = context.filterRulesDB.getRules()
-    private val ruleKeywords = rules.associate { it.id to it.keywordList() }
+fun Context.getSpamRule(): FilterRule {
+    filterRulesDB.getSpamRule()?.let { return it }
 
-    fun ruleKeywords(rule: FilterRule) = ruleKeywords[rule.id].orEmpty()
+    val rule = FilterRule(
+        position = -1,
+        folderId = SPAM_FOLDER_ID,
+        sender = "",
+        keywords = config.blockedKeywords.sorted().joinToString("\n"),
+        action = config.spamAction,
+        isSpam = true,
+        applyToContacts = config.filterSavedContacts
+    )
+    return rule.copy(id = filterRulesDB.insertRule(rule))
+}
+
+/**
+ * The filter rules, read once: the Spam rule first, then the others in order; the first rule that matches decides
+ * what happens. Reuse one instance when checking many messages. Create it off the main thread.
+ */
+class MessageFilter(private val context: Context) {
+    // getSpamRule creates the Spam rule if it does not exist yet
+    val rules = run {
+        context.getSpamRule()
+        context.filterRulesDB.getRules()
+    }
+    private val ruleKeywords = rules.associate { it.id to it.keywordList() }
+    private val spamExemptNumbers = context.config.spamExemptNumbers.map { it.toSenderKey() }.toSet()
+    private val savedContacts = HashMap<String, Boolean>()
 
     /** What to do with a message from [address], or null to leave it in the inbox. */
     fun filter(address: String, body: String): FilterResult? {
-        return if (spam.isSpam(address, body)) spamResult() else filterByRules(address, body)
+        rules.forEach { rule ->
+            if (applies(rule, address, body)) {
+                val keywords = findSpamKeywords(body, ruleKeywords[rule.id].orEmpty())
+                return FilterResult(rule.folderId, rule, keywords, deletes = rule.deletes(), notifies = rule.notify)
+            }
+        }
+        return null
     }
 
-    fun spamResult() = FilterResult(SPAM_FOLDER_ID, deletes = spam.deletes)
+    private fun applies(rule: FilterRule, address: String, body: String) =
+        ruleMatches(rule.sender, ruleKeywords[rule.id].orEmpty(), address, body) &&
+            !(rule.isSpam && address.toSenderKey() in spamExemptNumbers) &&
+            (rule.applyToContacts || !isSavedContact(address))
 
-    /** What the rules alone do with a message, or null if none matches. */
-    fun filterByRules(address: String, body: String): FilterResult? {
-        val rule = rules.firstOrNull { ruleMatches(it.sender, ruleKeywords[it.id].orEmpty(), address, body) }
-        return rule?.let { FilterResult(it.folderId, notifies = it.notify, rule = it) }
+    private fun isSavedContact(address: String) = savedContacts.getOrPut(address) {
+        SimpleContactsHelper(context).existsSync(address) == ContactLookupResult.Found
     }
 }
 
