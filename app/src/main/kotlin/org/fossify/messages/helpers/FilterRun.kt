@@ -29,9 +29,10 @@ class FilterMatches {
 
 /**
  * What running the filters over the received messages on the phone would change: messages moving to a folder (Spam or
- * a rule's folder) or back to the inbox, messages whose conversations the Spam rule archives, and conversations it
- * archived earlier that it no longer matches ([unmatchedArchived], by thread id; [toUnarchive] are still archived). Of the messages that change, [ruleMatches]
- * counts what each rule takes, by rule id; the Spam rule is one of them.
+ * a rule's folder) or back to the inbox, and messages whose conversations the Spam rule archives. [unmatchedArchived]
+ * are the conversations it archived earlier that it no longer matches, by thread id, and [toUnarchive] those of them
+ * that are still archived. Of the messages that change, [ruleMatches] counts what each rule takes, by rule id; the
+ * Spam rule is one of them.
  */
 data class FilterRun(
     val toFolders: List<FilteredMessage>,

@@ -28,7 +28,6 @@ private fun Context.updateSpamArchivedThreads(change: (MutableSet<Long>) -> Unit
 @Suppress("SwallowedException")
 fun Context.archiveSpamConversation(threadId: Long): Boolean {
     try {
-        getConversations(threadId).firstOrNull()?.let { insertOrUpdateConversation(it) }
         updateConversationArchivedStatus(threadId, true)
     } catch (e: SQLiteException) {
         return false
@@ -37,6 +36,7 @@ fun Context.archiveSpamConversation(threadId: Long): Boolean {
     if (!config.isArchiveAvailable) {
         return false
     }
+    getConversations(threadId).firstOrNull()?.let { insertOrUpdateConversation(it) }
     updateSpamArchivedThreads { it += threadId }
     return true
 }
@@ -45,7 +45,14 @@ fun Context.archiveSpamConversation(threadId: Long): Boolean {
  * Returns conversations the Spam rule archived to the inbox, and forgets that it archived those in [forget]. Run it off
  * the main thread.
  */
+@Suppress("SwallowedException")
 fun Context.unarchiveSpamConversations(threadIds: Collection<Long>, forget: Collection<Long>) {
-    threadIds.forEach { updateConversationArchivedStatus(it, false) }
+    threadIds.forEach {
+        try {
+            updateConversationArchivedStatus(it, false)
+        } catch (e: SQLiteException) {
+            return@forEach
+        }
+    }
     updateSpamArchivedThreads { it -= (forget + threadIds).toSet() }
 }
