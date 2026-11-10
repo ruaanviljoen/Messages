@@ -168,6 +168,22 @@ class MainActivity : SimpleActivity() {
         }
     }
 
+    // The search text survives a rotation, but the open search does not. Reopen it as a tap on the search box does
+    // (focus opens it), after the search menu has set up its focus listener, and repeat the search.
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        val query = binding.mainMenu.getCurrentQuery()
+        if (query.isNotEmpty()) {
+            binding.mainMenu.post {
+                currentFocus?.clearFocus()
+                binding.mainMenu.focusView()
+                binding.searchHolder.alpha = 1f
+                binding.searchHolder.beVisible()
+                searchTextChanged(query, forceUpdate = true)
+            }
+        }
+    }
+
     private fun setupOptionsMenu() {
         binding.mainMenu.requireToolbar().inflateMenu(R.menu.menu_main)
         binding.mainMenu.toggleHideOnScroll(true)
