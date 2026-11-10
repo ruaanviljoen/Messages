@@ -74,7 +74,9 @@ fun Context.searchMessages(text: String): List<Message> {
         }
     }
 
-    return found + messagesDB.getMessagesWithText("%$text%").filter { it.isScheduled }
+    // messages in the recycle bin are still in the store, but are not shown outside the recycle bin
+    val recycled = messagesDB.getAllRecycleBinMessages().map { it.id }.toSet()
+    return found.filterNot { it.id in recycled } + messagesDB.getMessagesWithText("%$text%").filter { it.isScheduled }
 }
 
 private const val ASCII_LIMIT = 128

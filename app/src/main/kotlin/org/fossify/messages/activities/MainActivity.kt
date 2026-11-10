@@ -59,18 +59,21 @@ import org.fossify.messages.extensions.clearAllMessagesIfNeeded
 import org.fossify.messages.extensions.clearExpiredScheduledMessages
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.conversationsDB
+import org.fossify.messages.extensions.deleteMessage
 import org.fossify.messages.extensions.getConversations
 import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.messagesDB
+import org.fossify.messages.extensions.moveMessageToRecycleBin
+import org.fossify.messages.extensions.updateLastConversationMessage
 import org.fossify.messages.helpers.IS_SPAM
 import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
+import org.fossify.messages.helpers.THREAD_ID
+import org.fossify.messages.helpers.THREAD_TITLE
 import org.fossify.messages.helpers.searchMessages
 import org.fossify.messages.helpers.spamDB
 import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.withoutStoredSpamOnly
-import org.fossify.messages.helpers.THREAD_ID
-import org.fossify.messages.helpers.THREAD_TITLE
 import org.fossify.messages.models.Conversation
 import org.fossify.messages.models.Events
 import org.fossify.messages.models.Message
@@ -596,7 +599,8 @@ class MainActivity : SimpleActivity() {
                 snippet = message.body,
                 date = date,
                 threadId = message.threadId,
-                photoUri = message.senderPhotoUri
+                photoUri = message.senderPhotoUri,
+                message = message
             )
             searchResults.add(searchResult)
         }
@@ -607,7 +611,13 @@ class MainActivity : SimpleActivity() {
 
             val currAdapter = binding.searchResultsList.adapter
             if (currAdapter == null) {
-                SearchResultsAdapter(this, searchResults, binding.searchResultsList, searchedText) {
+                SearchResultsAdapter(
+                    activity = this,
+                    searchResults = searchResults,
+                    recyclerView = binding.searchResultsList,
+                    highlightText = searchedText,
+                    deleteMessages = { messages, toRecycleBin -> deleteSearchedMessages(messages, toRecycleBin) }
+                ) {
                     hideKeyboard()
                     Intent(this, ThreadActivity::class.java).apply {
                         putExtra(THREAD_ID, (it as SearchResult).threadId)
@@ -624,6 +634,23 @@ class MainActivity : SimpleActivity() {
                 (currAdapter as SearchResultsAdapter).updateItems(searchResults, searchedText)
             }
         }
+    }
+
+    // Deletes messages selected in the search results, as the conversation screen does, and repeats the search.
+    private fun deleteSearchedMessages(messages: List<Message>, toRecycleBin: Boolean) {
+        messages.forEach {
+            if (toRecycleBin) {
+                messagesDB.insertOrUpdate(it)
+                moveMessageToRecycleBin(it.id)
+            } else {
+                deleteMessage(it.id, it.isMMS)
+            }
+        }
+        updateLastConversationMessage(messages.map { it.threadId }.distinct())
+        // qualified, because this activity's event handlers have the same names
+        org.fossify.messages.helpers.refreshMessages()
+        org.fossify.messages.helpers.refreshConversations()
+        runOnUiThread { searchTextChanged(lastSearchedText, forceUpdate = true) }
     }
 
     private fun launchRecycleBin() {
