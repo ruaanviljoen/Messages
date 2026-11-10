@@ -15,18 +15,30 @@ import org.fossify.messages.models.FilteredMessage
 
 internal const val MILLIS_PER_SECOND = 1000
 
+/** How many changing messages a filter takes, and how many of them match each of its keywords. */
+class FilterMatches {
+    var total = 0
+        private set
+    val keywordCounts = HashMap<String, Int>()
+
+    fun add(keywords: List<String>) {
+        total++
+        keywords.forEach { keywordCounts.merge(it, 1, Int::plus) }
+    }
+}
+
 /**
  * What running the filters over the received messages on the phone would change: messages moving to a folder (Spam or
- * a rule's folder), back to the inbox, or deleted. Of the messages that move or are deleted, [keywordCounts] counts
- * those matching each Spam keyword and [ruleCounts] those each rule takes, by rule id.
+ * a rule's folder), back to the inbox, or deleted. Of the messages that move or are deleted, [spamMatches] and
+ * [ruleMatches] (by rule id) count what each filter takes.
  */
 data class FilterRun(
     val toFolders: List<FilteredMessage>,
     val toInbox: List<FilteredMessage>,
     val toDelete: List<FilteredMessage>,
     val stale: List<FilteredMessage>,
-    val keywordCounts: Map<String, Int>,
-    val ruleCounts: Map<Long, Int>
+    val spamMatches: FilterMatches,
+    val ruleMatches: Map<Long, FilterMatches>
 ) {
     val hasChanges get() = toFolders.isNotEmpty() || toInbox.isNotEmpty() || toDelete.isNotEmpty()
 }
@@ -44,8 +56,8 @@ fun Context.planFilterRun(): FilterRun {
     val toInbox = ArrayList<FilteredMessage>()
     val toDelete = ArrayList<FilteredMessage>()
     val stale = ArrayList<FilteredMessage>()
-    val keywordCounts = HashMap<String, Int>()
-    val ruleCounts = HashMap<Long, Int>()
+    val spamMatches = FilterMatches()
+    val ruleMatches = HashMap<Long, FilterMatches>()
 
     forEachReceivedMessage { message, address, body ->
         val stored = entries.remove(message.id to message.isMMS)
@@ -68,13 +80,17 @@ fun Context.planFilterRun(): FilterRun {
         }
 
         // counted only when the message changes, so messages already in their folder are not reported again
-        keywords.forEach { keywordCounts.merge(it, 1, Int::plus) }
-        result?.rule?.let { ruleCounts.merge(it.id, 1, Int::plus) }
+        val rule = result?.rule
+        when {
+            keywords.isNotEmpty() -> spamMatches.add(keywords)
+            rule != null -> ruleMatches.getOrPut(rule.id) { FilterMatches() }
+                .add(findSpamKeywords(body, filter.ruleKeywords(rule)))
+        }
     }
 
     // An entry not seen above is stale only if its message is really gone, not merely missed by a failed read.
     stale += entries.values.filterNot { messageExists(it) }
-    return FilterRun(toFolders, toInbox, toDelete, stale, keywordCounts, ruleCounts)
+    return FilterRun(toFolders, toInbox, toDelete, stale, spamMatches, ruleMatches)
 }
 
 /** Applies a run worked out by [planFilterRun]. Run it off the main thread. */

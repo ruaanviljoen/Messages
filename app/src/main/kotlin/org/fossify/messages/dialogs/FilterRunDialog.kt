@@ -5,6 +5,7 @@ import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.messages.R
+import org.fossify.messages.helpers.FilterMatches
 import org.fossify.messages.helpers.FilterRun
 import org.fossify.messages.helpers.applyFilterRun
 import org.fossify.messages.helpers.filterRulesDB
@@ -50,20 +51,31 @@ class FilterRunDialog(
     // Reads the rules and folder names, so it runs off the main thread.
     private fun describe(run: FilterRun): String = with(activity) {
         val folders = getFolderNames()
-        val keywordLines = run.keywordCounts.entries.sortedByDescending { it.value }
-            .joinToString("\n") { getString(R.string.spam_keyword_count, it.key, it.value) }
-        val ruleLines = filterRulesDB.getRules().filter { it.id in run.ruleCounts }.joinToString("\n") {
-            getString(R.string.filter_rule_count, folders[it.folderId].orEmpty(), it.describe(), run.ruleCounts[it.id])
-        }
+        val lines = arrayListOf(getString(R.string.filter_run_question), "")
+        listOf(
+            R.string.filter_run_move to run.toFolders.size,
+            R.string.filter_run_inbox to run.toInbox.size,
+            R.string.filter_run_delete to run.toDelete.size
+        ).filter { it.second > 0 }.forEach { lines += getString(it.first, it.second) }
 
-        return buildString {
-            append(getString(R.string.filter_run_summary, run.toFolders.size, run.toInbox.size, run.toDelete.size))
-            if (keywordLines.isNotEmpty()) {
-                append("\n\n").append(getString(R.string.spam_keyword_counts)).append("\n").append(keywordLines)
+        // Spam first, then the rules in the order they run, each named after its folder
+        val filters = listOf(getString(R.string.spam) to run.spamMatches) +
+            filterRulesDB.getRules().mapNotNull { rule ->
+                run.ruleMatches[rule.id]?.let { folders[rule.folderId].orEmpty() to it }
             }
-            if (ruleLines.isNotEmpty()) {
-                append("\n\n").append(getString(R.string.filter_rule_counts)).append("\n").append(ruleLines)
-            }
+        val matching = filters.filter { it.second.total > 0 }
+        if (matching.isNotEmpty()) {
+            lines += ""
+            lines += getString(R.string.filter_run_matches)
+            matching.forEach { (name, matches) -> lines += describe(name, matches) }
         }
+        return lines.joinToString("\n")
+    }
+
+    // A filter's line with its total, then a line for each of its keywords, most matches first.
+    private fun describe(name: String, matches: FilterMatches): List<String> = with(activity) {
+        listOf(getString(R.string.filter_run_filter, name, matches.total)) +
+            matches.keywordCounts.entries.sortedByDescending { it.value }
+                .map { getString(R.string.filter_run_keyword, it.key, it.value) }
     }
 }

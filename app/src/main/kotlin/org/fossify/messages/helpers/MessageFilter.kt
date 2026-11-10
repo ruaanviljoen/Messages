@@ -41,6 +41,8 @@ class MessageFilter(context: Context) {
     val rules = context.filterRulesDB.getRules()
     private val ruleKeywords = rules.associate { it.id to it.keywordList() }
 
+    fun ruleKeywords(rule: FilterRule) = ruleKeywords[rule.id].orEmpty()
+
     /** What to do with a message from [address], or null to leave it in the inbox. */
     fun filter(address: String, body: String): FilterResult? {
         return if (spam.isSpam(address, body)) spamResult() else filterByRules(address, body)
