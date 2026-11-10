@@ -222,6 +222,7 @@ class ThreadActivity : SimpleActivity() {
     private var allMessagesFetched = false
     private var isJumpingToMessage = false
     private var isRecycleBin = false
+    private var isOpeningContact = false
     private var isLaunchedFromShortcut = false
 
     private var isScheduledMessage: Boolean = false
@@ -1069,7 +1070,7 @@ class ThreadActivity : SimpleActivity() {
     // Tapping the title opens the contact of a one-to-one conversation with a saved contact, and the conversation
     // details otherwise, where each participant can be opened.
     private fun openContactOrDetails() {
-        if (isRecycleBin) {
+        if (isRecycleBin || isOpeningContact) {
             return
         }
 
@@ -1079,12 +1080,17 @@ class ThreadActivity : SimpleActivity() {
             return
         }
 
-        getContactFromAddress(address) { contact ->
-            runOnUiThread {
-                if (contact != null) {
-                    startContactDetailsIntent(contact)
-                } else {
-                    launchConversationDetailsIfSaved()
+        // looking the contact up takes a moment; a second tap meanwhile is ignored
+        isOpeningContact = true
+        ensureBackgroundThread {
+            getContactFromAddress(address) { contact ->
+                runOnUiThread {
+                    isOpeningContact = false
+                    if (contact != null) {
+                        startContactDetailsIntent(contact)
+                    } else {
+                        launchConversationDetailsIfSaved()
+                    }
                 }
             }
         }
