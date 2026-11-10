@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/filter_rule_holder"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/tiny_margin"
+    android:clickable="true"
+    android:focusable="true"
+    android:paddingTop="@dimen/medium_margin"
+    android:paddingBottom="@dimen/medium_margin">
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/filter_rule_folder"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_marginStart="@dimen/activity_margin"
+        android:layout_toStartOf="@+id/filter_rule_drag_handle"
+        android:textSize="@dimen/bigger_text_size"
+        tools:text="Payments" />
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/filter_rule_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/filter_rule_folder"
+        android:layout_alignParentStart="true"
+        android:layout_marginStart="@dimen/activity_margin"
+        android:layout_toStartOf="@+id/filter_rule_drag_handle"
+        android:alpha="0.7"
+        tools:text="FNB, &quot;purchase&quot;" />
+
+    <ImageView
+        android:id="@+id/filter_rule_drag_handle"
+        android:layout_width="@dimen/normal_icon_size"
+        android:layout_height="@dimen/normal_icon_size"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="@dimen/activity_margin"
+        android:contentDescription="@string/reorder_filter_rule"
+        android:padding="@dimen/small_margin"
+        android:src="@drawable/ic_drag_handle_vector" />
+
+</RelativeLayout>

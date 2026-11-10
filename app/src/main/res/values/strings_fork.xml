@@ -3,13 +3,14 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="spam">Spam</string>
     <string name="no_messages_in_folder">No messages in this folder</string>
-    <string name="spam_filter">Spam filter</string>
-    <string name="run_spam_filter">Run filter on existing messages</string>
-    <string name="spam_action">When a message matches</string>
+    <string name="filters">Filters</string>
+    <string name="spam_keywords">Spam keywords</string>
+    <string name="run_spam_filter">Run filters on existing messages</string>
+    <string name="spam_action">When a message is spam</string>
     <string name="spam_action_move">Move it to Spam</string>
     <string name="spam_action_delete">Delete it</string>
     <string name="filter_saved_contacts">Filter messages from saved contacts</string>
-    <string name="spam_exempt_numbers">Numbers never filtered</string>
+    <string name="spam_exempt_numbers">Numbers never treated as spam</string>
     <string name="spam_exempt_numbers_hint">One number per line</string>
     <string name="checking_messages">Checking the messages on the phone…</string>
     <string name="spam_filter_no_changes">No messages need to change.</string>
@@ -19,4 +20,16 @@
     <string name="filter_rule_counts">Messages each rule moves:</string>
     <string name="filter_rule_count">%1$s (%2$s): %3$d</string>
     <string name="spam_keyword_count">\"%1$s\": %2$d</string>
+    <string name="filter_rules">Filter rules</string>
+    <string name="add_filter_rule">Add rule</string>
+    <string name="no_filter_rules">No filter rules yet. A rule moves messages from a sender, or with certain words, to a folder of your choice.</string>
+    <string name="filter_rule_folder">Folder</string>
+    <string name="filter_rule_sender">Sender (number or name, optional)</string>
+    <string name="filter_rule_keywords">Keywords, one per line (optional)</string>
+    <string name="filter_rule_notify">Show notifications</string>
+    <string name="filter_rule_needs_folder">Choose a folder</string>
+    <string name="filter_rule_needs_sender_or_keyword">Enter a sender or at least one keyword</string>
+    <string name="new_folder">New folder</string>
+    <string name="folder_name">Folder name</string>
+    <string name="reorder_filter_rule">Drag to change the order</string>
 </resources>

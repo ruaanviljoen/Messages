@@ -102,7 +102,7 @@ class SettingsActivity : SimpleActivity() {
         setupUseEnglish()
         setupLanguage()
         setupManageBlockedNumbers()
-        setupManageBlockedKeywords()
+        setupFilterSettings(binding)
         setupChangeDateTimeFormat()
         setupFontSize()
         setupShowCharacterCounter()
@@ -130,6 +130,7 @@ class SettingsActivity : SimpleActivity() {
         arrayOf(
             binding.settingsColorCustomizationSectionLabel,
             binding.settingsGeneralSettingsLabel,
+            binding.settingsFiltersLabel,
             binding.settingsOutgoingMessagesLabel,
             binding.settingsNotificationsLabel,
             binding.settingsArchivedMessagesLabel,
@@ -203,16 +204,6 @@ class SettingsActivity : SimpleActivity() {
         settingsManageBlockedNumbersHolder.beVisible()
         settingsManageBlockedNumbersHolder.setOnClickListener {
             Intent(this@SettingsActivity, ManageBlockedNumbersActivity::class.java).apply {
-                startActivity(this)
-            }
-        }
-    }
-
-    private fun setupManageBlockedKeywords() = binding.apply {
-        settingsManageBlockedKeywords.text = getString(R.string.spam_filter)
-
-        settingsManageBlockedKeywordsHolder.setOnClickListener {
-            Intent(this@SettingsActivity, ManageBlockedKeywordsActivity::class.java).apply {
                 startActivity(this)
             }
         }
