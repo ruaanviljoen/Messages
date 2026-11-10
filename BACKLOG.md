@@ -10,6 +10,21 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 - Search results can be selected with press and hold (copy, share, delete, select all), acting on the selected messages only.
 - Search results stay after rotating the phone.
 
+## In progress: filter rules and folders
+
+Agreed design:
+
+- The spam filter stays a separate setting, but works as a rule that always runs first. If it has no keywords, it does not run.
+- After Spam, the user's rules run from top to bottom, and the first rule that matches decides the folder. A message that matches no rule goes to the inbox.
+- A rule has a sender (a number or sender name, optional), keywords (any one, anywhere, ignoring case, optional) and a folder. It needs at least one of sender or keywords; when both are given, both must match. Spam's exemptions (saved contacts, numbers never filtered) apply only to Spam.
+- A rule moves messages to a folder. There is no delete action for rules at first; deleting stays with Spam.
+- Each rule has a notification switch, off by default. Spam never notifies.
+- Folders appear in the main menu next to Spam. A folder works like Spam: it lists conversations, and opening one shows only that folder's messages, with restore and delete. A conversation can appear in the inbox and in a folder at the same time.
+- Settings get a "Spam filter" section (see the proposal below) and a "Filter rules" row that opens the rule list, where rules can be added, edited, deleted and reordered. Running the rules on existing messages shows counts per rule and asks first.
+- Under the hood the Spam table becomes a general "message to folder" table, with Spam as a built-in folder. Existing Spam entries are kept.
+
+Build order: rules engine and storage; folders in the main menu and folder views; rules screen; Spam filter section in Settings; then export and import of the whole setup.
+
 ## To investigate: deleting a conversation bypasses the recycle bin
 
 Reported from the phone: with the recycle bin turned on, deleting a conversation removed it completely and nothing appeared in the recycle bin.
