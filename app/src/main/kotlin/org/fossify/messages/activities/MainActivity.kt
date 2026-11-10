@@ -96,8 +96,8 @@ class MainActivity : SimpleActivity() {
     private var storedFontSize = 0
     private var lastSearchedText = ""
 
-    // The folders of search results that are in a folder, by message id and thread id, and the folders' names.
-    private var searchResultFolders = emptyMap<Pair<Long, Long>, Long>()
+    // The folders of search results that are in a folder, by message id and type, and the folders' names.
+    private var searchResultFolders = emptyMap<Pair<Long, Boolean>, Long>()
     private var folderNames = emptyMap<Long, String>()
     private var bus: EventBus? = null
 
@@ -591,11 +591,13 @@ class MainActivity : SimpleActivity() {
                 val searchQuery = "%$text%"
                 val messages = searchMessages(text)
                 val conversations = conversationsDB.getConversationsWithText(searchQuery)
-                val filed = filteredDB.getFiled().associate { (it.id to it.threadId) to it.folderId }
+                val filed = filteredDB.getFiled().associateBy { it.id to it.isMMS }
                 val names = getFolderNames()
                 if (text == lastSearchedText) {
-                    searchResultFolders = messages.map { it.id to it.threadId }.filter { it in filed }
-                        .associateWith { filed.getValue(it) }
+                    searchResultFolders = messages.mapNotNull { message ->
+                        val entry = filed[message.id to message.isMMS]?.takeIf { it.date == message.date }
+                        entry?.let { (message.id to message.isMMS) to it.folderId }
+                    }.toMap()
                     folderNames = names
                     showSearchResults(messages, conversations, text)
                 }
@@ -643,7 +645,7 @@ class MainActivity : SimpleActivity() {
                 showCurrentYear = true
             )
 
-            val folderName = searchResultFolders[message.id to message.threadId]?.let { folderNames[it] }
+            val folderName = searchResultFolders[message.id to message.isMMS]?.let { folderNames[it] }
             val searchResult = SearchResult(
                 messageId = message.id,
                 title = if (folderName != null) "$recipient · $folderName" else recipient,
@@ -675,7 +677,7 @@ class MainActivity : SimpleActivity() {
                         putExtra(THREAD_TITLE, it.title)
                         putExtra(SEARCHED_MESSAGE_ID, it.messageId)
                         // a result in a folder opens the conversation's messages in that folder
-                        searchResultFolders[it.messageId to it.threadId]?.let { id -> putExtra(FOLDER_ID, id) }
+                        it.message?.let { m -> searchResultFolders[m.id to m.isMMS] }?.let { putExtra(FOLDER_ID, it) }
                         startActivity(this)
                     }
                 }.apply {

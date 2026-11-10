@@ -150,7 +150,8 @@ class SmsReceiver : BroadcastReceiver() {
             }
         }
 
-        if (context.shouldUnarchive()) {
+        // a filed message neither unarchives the conversation nor opens in the inbox
+        if (filterResult == null && context.shouldUnarchive()) {
             context.updateConversationArchivedStatus(threadId, false)
         }
 
@@ -163,7 +164,8 @@ class SmsReceiver : BroadcastReceiver() {
             senderName = senderName,
             body = body,
             threadId = threadId,
-            bitmap = bitmap
+            bitmap = bitmap,
+            folderId = filterResult?.folderId
         )
     }
 }

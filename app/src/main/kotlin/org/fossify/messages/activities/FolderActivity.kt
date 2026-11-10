@@ -35,7 +35,8 @@ class FolderActivity : SimpleActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        binding.recycleBinToolbar.title = intent.getStringExtra(FOLDER_NAME) ?: getString(R.string.spam)
+        title = intent.getStringExtra(FOLDER_NAME) ?: getString(R.string.spam)
+        binding.recycleBinToolbar.title = title
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
         setupMaterialScrollListener(scrollingView = binding.conversationsList, topAppBar = binding.recycleBinAppbar)
         EventBus.getDefault().register(this)

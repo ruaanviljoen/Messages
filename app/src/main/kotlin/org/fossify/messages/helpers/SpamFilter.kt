@@ -24,8 +24,13 @@ fun findSpamKeywords(body: String, keywords: Collection<String>): List<String> {
 /** The last nine digits of a phone number, so that local (082...) and international (+2782...) forms compare equal. */
 fun String.toComparableNumber() = filter(Char::isDigit).takeLast(COMPARABLE_NUMBER_DIGITS)
 
-/** How a sender is compared: a number by its last digits, a sender name such as "FNB" by its text, ignoring case. */
-fun String.toSenderKey() = toComparableNumber().ifEmpty { trim().lowercase() }
+private val PHONE_NUMBER = Regex("""^[+\d\s()-]*\d[+\d\s()-]*$""")
+
+/**
+ * How a sender is compared: a phone number by its last digits, a sender name such as "FNB" or "MTN4U" by its text,
+ * ignoring case.
+ */
+fun String.toSenderKey() = trim().let { if (PHONE_NUMBER.matches(it)) it.toComparableNumber() else it.lowercase() }
 
 /** The spam filter's current settings, read once. Reuse one instance when checking many messages. */
 class SpamFilter(private val context: Context) {

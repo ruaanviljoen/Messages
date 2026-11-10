@@ -271,7 +271,7 @@
                     style="@style/SettingsTextLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/run_spam_filter" />
+                    android:text="@string/run_filters" />
 
             </RelativeLayout>
 

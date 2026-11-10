@@ -300,10 +300,7 @@ class ThreadActivity : SimpleActivity() {
 
         isActivityVisible = true
 
-        // a folder view leaves the conversation's other messages and their notification alone
-        if (!isFolderView) {
-            notificationManager.cancel(threadId.hashCode())
-        }
+        notificationManager.cancel(threadId.hashCode())
 
         ensureBackgroundThread {
             val newConv = conversationsDB.getConversationWithThreadId(threadId)
@@ -322,6 +319,7 @@ class ThreadActivity : SimpleActivity() {
                 }
             }
 
+            // a folder view leaves the read state of the conversation's other messages alone
             if (!isFolderView) {
                 markThreadMessagesRead(threadId)
             }

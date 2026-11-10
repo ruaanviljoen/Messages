@@ -44,7 +44,8 @@ class NotificationHelper(private val context: Context) {
         threadId: Long,
         bitmap: Bitmap?,
         sender: String?,
-        alertOnlyOnce: Boolean = false
+        alertOnlyOnce: Boolean = false,
+        folderId: Long? = null
     ) {
         val hasCustomNotifications =
             context.config.customNotifications.contains(threadId.toString())
@@ -57,6 +58,8 @@ class NotificationHelper(private val context: Context) {
         val notificationId = threadId.hashCode()
         val contentIntent = Intent(context, ThreadActivity::class.java).apply {
             putExtra(THREAD_ID, threadId)
+            // a message a filter rule moved to a folder opens in that folder
+            folderId?.let { putExtra(FOLDER_ID, it) }
         }
         val contentPendingIntent =
             PendingIntent.getActivity(

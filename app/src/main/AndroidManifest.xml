@@ -52,7 +52,6 @@
             android:name=".activities.FolderActivity"
             android:configChanges="orientation"
             android:exported="false"
-            android:label="@string/spam"
             android:parentActivityName=".activities.MainActivity" />
 
         <activity

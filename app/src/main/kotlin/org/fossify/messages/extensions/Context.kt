@@ -1070,6 +1070,7 @@ fun Context.showReceivedMessageNotification(
     body: String,
     threadId: Long,
     bitmap: Bitmap?,
+    folderId: Long? = null,
 ) {
     Handler(Looper.getMainLooper()).post {
         notificationHelper.showMessageNotification(
@@ -1079,7 +1080,8 @@ fun Context.showReceivedMessageNotification(
             body = body,
             threadId = threadId,
             bitmap = bitmap,
-            sender = senderName
+            sender = senderName,
+            folderId = folderId
         )
     }
 }

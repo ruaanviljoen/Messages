@@ -58,7 +58,7 @@ class FilterRulesActivity : SimpleActivity() {
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.add_filter_rule -> editRule()
-                    R.id.run_filter_rules -> offerFilterRun(showIfNoChanges = true)
+                    R.id.run_filters -> offerFilterRun(showIfNoChanges = true)
                     else -> return@setOnMenuItemClickListener false
                 }
                 true
@@ -91,9 +91,16 @@ class FilterRulesActivity : SimpleActivity() {
         }
     }
 
+    // The order decides which rule wins, so a new order may move messages.
     private fun saveOrder(rules: List<FilterRule>) {
         val ordered = rules.mapIndexed { index, rule -> rule.copy(position = index) }
-        ensureBackgroundThread { filterRulesDB.updateRules(ordered) }
+        ensureBackgroundThread {
+            filterRulesDB.updateRules(ordered)
+            runOnUiThread {
+                loadRules()
+                offerFilterRun()
+            }
+        }
     }
 
     private fun offerFilterRun(showIfNoChanges: Boolean = false) {

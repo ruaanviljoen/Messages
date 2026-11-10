@@ -17,6 +17,14 @@ import org.fossify.messages.helpers.SPAM_ACTION_MOVE
 
 // The "Filters" section of the settings: Spam's settings, the filter rules and running the filters.
 
+// Only the latest run of the filters is offered; older ones were worked out with outdated settings.
+private var latestFilterRun = 0
+
+private fun SimpleActivity.offerFilterRun(showIfNoChanges: Boolean = false) {
+    val runNumber = ++latestFilterRun
+    FilterRunDialog(this, showIfNoChanges) { runNumber == latestFilterRun }
+}
+
 fun SimpleActivity.setupFilterSettings(binding: ActivitySettingsBinding) = binding.apply {
     settingsManageBlockedKeywordsHolder.setOnClickListener {
         startActivity(Intent(this@setupFilterSettings, ManageBlockedKeywordsActivity::class.java))
@@ -31,7 +39,7 @@ fun SimpleActivity.setupFilterSettings(binding: ActivitySettingsBinding) = bindi
         RadioGroupDialog(this@setupFilterSettings, items, config.spamAction, R.string.spam_action) {
             config.spamAction = it as Int
             settingsSpamAction.text = getSpamActionText()
-            FilterRunDialog(this@setupFilterSettings)
+            offerFilterRun()
         }
     }
 
@@ -39,7 +47,7 @@ fun SimpleActivity.setupFilterSettings(binding: ActivitySettingsBinding) = bindi
     settingsFilterSavedContactsHolder.setOnClickListener {
         settingsFilterSavedContacts.toggle()
         config.filterSavedContacts = settingsFilterSavedContacts.isChecked
-        FilterRunDialog(this@setupFilterSettings)
+        offerFilterRun()
     }
 
     settingsSpamExemptNumbersHolder.setOnClickListener { editSpamExemptNumbers() }
@@ -48,7 +56,7 @@ fun SimpleActivity.setupFilterSettings(binding: ActivitySettingsBinding) = bindi
         startActivity(Intent(this@setupFilterSettings, FilterRulesActivity::class.java))
     }
 
-    settingsRunFiltersHolder.setOnClickListener { FilterRunDialog(this@setupFilterSettings, showIfNoChanges = true) }
+    settingsRunFiltersHolder.setOnClickListener { offerFilterRun(showIfNoChanges = true) }
 }
 
 private fun SimpleActivity.getSpamActionText() = getString(
@@ -66,7 +74,7 @@ private fun SimpleActivity.editSpamExemptNumbers() {
         .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->
             config.spamExemptNumbers = dialogBinding.addBlockedKeywordEdittext.value
                 .split('\n', ',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
-            FilterRunDialog(this)
+            offerFilterRun()
         }
         .setNegativeButton(org.fossify.commons.R.string.cancel, null)
         .apply { setupDialogStuff(dialogBinding.root, this, R.string.spam_exempt_numbers) }

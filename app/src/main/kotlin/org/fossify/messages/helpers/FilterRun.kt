@@ -79,6 +79,7 @@ fun Context.planFilterRun(): FilterRun {
 fun Context.applyFilterRun(run: FilterRun) {
     (run.stale + run.toInbox).forEach { filteredDB.delete(it.id, it.isMMS) }
     filteredDB.insertAll(run.toFolders)
+    // Existing messages moved to a folder are marked as read, even for rules that notify on new messages.
     run.toFolders.forEach { markMessageRead(it.id, it.isMMS) }
     run.toDelete.groupBy { it.threadId }.forEach { (threadId, spam) ->
         val keys = spam.map { it.id to it.isMMS }.toSet()

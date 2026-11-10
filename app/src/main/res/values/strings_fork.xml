@@ -5,7 +5,7 @@
     <string name="no_messages_in_folder">No messages in this folder</string>
     <string name="filters">Filters</string>
     <string name="spam_keywords">Spam keywords</string>
-    <string name="run_spam_filter">Run filters on existing messages</string>
+    <string name="run_filters">Run filters on existing messages</string>
     <string name="spam_action">When a message is spam</string>
     <string name="spam_action_move">Move it to Spam</string>
     <string name="spam_action_delete">Delete it</string>
@@ -22,6 +22,7 @@
     <string name="spam_keyword_count">\"%1$s\": %2$d</string>
     <string name="filter_rules">Filter rules</string>
     <string name="add_filter_rule">Add rule</string>
+    <string name="edit_filter_rule">Edit rule</string>
     <string name="no_filter_rules">No filter rules yet. A rule moves messages from a sender, or with certain words, to a folder of your choice.</string>
     <string name="filter_rule_folder">Folder</string>
     <string name="filter_rule_sender">Sender (number or name, optional)</string>

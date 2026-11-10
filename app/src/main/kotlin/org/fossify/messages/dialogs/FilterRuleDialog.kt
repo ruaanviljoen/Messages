@@ -28,6 +28,9 @@ class FilterRuleDialog(
     private var folders = emptyList<FilterFolder>()
     private var folderId = rule?.folderId
 
+    // A folder named in this dialog is created only when the rule is saved.
+    private var newFolderName: String? = null
+
     init {
         ensureBackgroundThread {
             folders = activity.filterRulesDB.getFolders()
@@ -49,7 +52,7 @@ class FilterRuleDialog(
             .setNegativeButton(org.fossify.commons.R.string.cancel, null)
             .apply { if (rule != null) setNeutralButton(org.fossify.commons.R.string.delete, null) }
             .apply {
-                val titleId = if (rule == null) R.string.add_filter_rule else R.string.filter_rules
+                val titleId = if (rule == null) R.string.add_filter_rule else R.string.edit_filter_rule
                 activity.setupDialogStuff(binding.root, this, titleId) { dialog ->
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { save(dialog) }
                     dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener { delete(dialog) }
@@ -58,23 +61,24 @@ class FilterRuleDialog(
     }
 
     private fun showFolder() {
-        binding.filterRuleFolder.setText(folders.firstOrNull { it.id == folderId }?.name.orEmpty())
+        binding.filterRuleFolder.setText(newFolderName ?: folders.firstOrNull { it.id == folderId }?.name.orEmpty())
     }
 
     private fun chooseFolder() {
         val items = folders.mapTo(ArrayList()) { RadioItem(it.id.toInt(), it.name) }
         items += RadioItem(NEW_FOLDER, activity.getString(R.string.new_folder))
-        RadioGroupDialog(activity, items, folderId?.toInt() ?: 0, R.string.filter_rule_folder) {
+        RadioGroupDialog(activity, items, folderId?.toInt() ?: NO_FOLDER, R.string.filter_rule_folder) {
             if (it == NEW_FOLDER) {
-                createFolder()
+                nameNewFolder()
             } else {
                 folderId = (it as Int).toLong()
+                newFolderName = null
                 showFolder()
             }
         }
     }
 
-    private fun createFolder() {
+    private fun nameNewFolder() {
         val nameBinding = DialogAddBlockedKeywordBinding.inflate(activity.layoutInflater)
         nameBinding.addBlockedKeywordHint.hint = activity.getString(R.string.folder_name)
         activity.getAlertDialogBuilder()
@@ -85,35 +89,38 @@ class FilterRuleDialog(
                     dialog.showKeyboard(nameBinding.addBlockedKeywordEdittext)
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                         val name = nameBinding.addBlockedKeywordEdittext.value.trim()
-                        if (name.isNotEmpty()) {
+                        if (name.isEmpty()) {
+                            activity.toast(org.fossify.commons.R.string.empty_name)
+                        } else {
                             dialog.dismiss()
-                            addFolder(name)
+                            chooseNewFolder(name)
                         }
                     }
                 }
             }
     }
 
-    private fun addFolder(name: String) {
-        ensureBackgroundThread {
-            val id = activity.filterRulesDB.insertFolder(FilterFolder(name = name))
-            folders = activity.filterRulesDB.getFolders()
-            activity.runOnUiThread {
-                folderId = id
-                showFolder()
-            }
-        }
+    // A name that is already a folder chooses that folder.
+    private fun chooseNewFolder(name: String) {
+        val existing = folders.firstOrNull { it.name.equals(name, ignoreCase = true) }
+        folderId = existing?.id
+        newFolderName = if (existing == null) name else null
+        showFolder()
     }
 
     private fun save(dialog: AlertDialog) {
         val sender = binding.filterRuleSender.value.trim()
         val keywords = binding.filterRuleKeywords.value.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        val chosenFolder = folderId
+        val newFolder = newFolderName
         when {
-            chosenFolder == null -> activity.toast(R.string.filter_rule_needs_folder)
+            folderId == null && newFolder == null -> activity.toast(R.string.filter_rule_needs_folder)
             sender.isEmpty() && keywords.isEmpty() -> activity.toast(R.string.filter_rule_needs_sender_or_keyword)
             else -> ensureBackgroundThread {
-                val position = rule?.position ?: activity.filterRulesDB.getRules().size
+                val chosenFolder = folderId
+                    ?: newFolder?.let { activity.filterRulesDB.insertFolder(FilterFolder(name = it)) }
+                    ?: return@ensureBackgroundThread
+                val position = rule?.position
+                    ?: ((activity.filterRulesDB.getRules().maxOfOrNull { it.position } ?: -1) + 1)
                 activity.filterRulesDB.insertRule(
                     FilterRule(
                         id = rule?.id ?: 0,
@@ -146,6 +153,7 @@ class FilterRuleDialog(
     }
 
     companion object {
-        private const val NEW_FOLDER = -1
+        private const val NO_FOLDER = -1
+        private const val NEW_FOLDER = -2
     }
 }

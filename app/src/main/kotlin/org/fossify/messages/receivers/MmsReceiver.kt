@@ -99,13 +99,17 @@ class MmsReceiver : MmsReceivedReceiver() {
             senderName = senderName,
             body = mms.body,
             threadId = mms.threadId,
-            bitmap = glideBitmap
+            bitmap = glideBitmap,
+            folderId = filterResult?.folderId
         )
 
-        val conversation = context.getConversations(mms.threadId).firstOrNull() ?: return
-        runCatching { context.insertOrUpdateConversation(conversation) }
-        if (context.shouldUnarchive()) {
-            context.updateConversationArchivedStatus(mms.threadId, false)
+        // a filed message must not become the inbox snippet or unarchive the conversation
+        if (filterResult == null) {
+            val conversation = context.getConversations(mms.threadId).firstOrNull() ?: return
+            runCatching { context.insertOrUpdateConversation(conversation) }
+            if (context.shouldUnarchive()) {
+                context.updateConversationArchivedStatus(mms.threadId, false)
+            }
         }
         refreshMessages()
         refreshConversations()
