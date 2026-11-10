@@ -173,13 +173,15 @@ class MainActivity : SimpleActivity() {
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         super.onRestoreInstanceState(savedInstanceState)
         val query = binding.mainMenu.getCurrentQuery()
-        if (query.isNotEmpty()) {
+        if (query.isNotEmpty() || binding.mainMenu.binding.topToolbarSearch.hasFocus()) {
             binding.mainMenu.post {
                 currentFocus?.clearFocus()
                 binding.mainMenu.focusView()
-                binding.searchHolder.alpha = 1f
-                binding.searchHolder.beVisible()
-                searchTextChanged(query, forceUpdate = true)
+                if (query.isNotEmpty()) {
+                    binding.searchHolder.alpha = 1f
+                    binding.searchHolder.beVisible()
+                    searchTextChanged(query, forceUpdate = true)
+                }
             }
         }
     }
