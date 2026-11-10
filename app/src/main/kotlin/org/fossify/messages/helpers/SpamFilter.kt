@@ -2,10 +2,7 @@ package org.fossify.messages.helpers
 
 import android.content.Context
 import org.fossify.messages.databases.FilterDatabase
-import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.deleteMessage
-import org.fossify.messages.extensions.messagesDB
-import org.fossify.messages.extensions.moveMessageToRecycleBin
 import org.fossify.messages.models.FilteredMessage
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.SPAM_FOLDER_ID
@@ -33,14 +30,9 @@ fun String.toSenderKey() = trim().let { if (PHONE_NUMBER.matches(it)) it.toCompa
 fun Message.toFilteredMessage(restored: Boolean = false, folderId: Long = SPAM_FOLDER_ID) =
     FilteredMessage(id, isMMS, threadId, date, restored, folderId)
 
-/** Deletes a message, to the recycle bin when it is enabled, and forgets its folder entry. */
+/** Deletes a message permanently and forgets its folder entry. */
 fun Context.deleteFilteredMessage(message: Message) {
-    if (config.useRecycleBin) {
-        messagesDB.insertOrUpdate(message)
-        moveMessageToRecycleBin(message.id)
-    } else {
-        deleteMessage(message.id, message.isMMS)
-    }
+    deleteMessage(message.id, message.isMMS)
     filteredDB.delete(message.id, message.isMMS)
 }
 

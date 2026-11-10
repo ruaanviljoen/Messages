@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import com.bumptech.glide.Glide
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
+import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.copyToClipboard
 import org.fossify.commons.extensions.getTextSize
 import org.fossify.commons.extensions.highlightTextPart
@@ -17,8 +18,6 @@ import org.fossify.commons.views.MyRecyclerView
 import org.fossify.messages.R
 import org.fossify.messages.activities.SimpleActivity
 import org.fossify.messages.databinding.ItemSearchResultBinding
-import org.fossify.messages.dialogs.DeleteConfirmationDialog
-import org.fossify.messages.extensions.config
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.SearchResult
 
@@ -27,7 +26,7 @@ class SearchResultsAdapter(
     var searchResults: ArrayList<SearchResult>,
     recyclerView: MyRecyclerView,
     highlightText: String,
-    private val deleteMessages: (messages: List<Message>, toRecycleBin: Boolean) -> Unit = { _, _ -> },
+    private val deleteMessages: (messages: List<Message>) -> Unit = {},
     itemClick: (Any) -> Unit
 ) : MyRecyclerViewAdapter(activity, recyclerView, itemClick) {
 
@@ -57,15 +56,9 @@ class SearchResultsAdapter(
 
     private fun askConfirmDelete(messages: List<Message>) {
         val items = resources.getQuantityString(R.plurals.delete_messages, messages.size, messages.size)
-        val useRecycleBin = activity.config.useRecycleBin
-        val baseString = if (useRecycleBin) {
-            org.fossify.commons.R.string.move_to_recycle_bin_confirmation
-        } else {
-            org.fossify.commons.R.string.deletion_confirmation
-        }
-        DeleteConfirmationDialog(activity, String.format(resources.getString(baseString), items), useRecycleBin) {
-            val toRecycleBin = useRecycleBin && !it
-            ensureBackgroundThread { deleteMessages(messages, toRecycleBin) }
+        val question = String.format(resources.getString(org.fossify.commons.R.string.deletion_confirmation), items)
+        ConfirmationDialog(activity, question) {
+            ensureBackgroundThread { deleteMessages(messages) }
             finishActMode()
         }
     }

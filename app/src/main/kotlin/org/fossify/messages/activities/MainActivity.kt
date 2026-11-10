@@ -54,7 +54,6 @@ import org.fossify.messages.R
 import org.fossify.messages.adapters.ConversationsAdapter
 import org.fossify.messages.adapters.SearchResultsAdapter
 import org.fossify.messages.databinding.ActivityMainBinding
-import org.fossify.messages.extensions.checkAndDeleteOldRecycleBinMessages
 import org.fossify.messages.extensions.clearAllMessagesIfNeeded
 import org.fossify.messages.extensions.clearExpiredScheduledMessages
 import org.fossify.messages.extensions.config
@@ -73,6 +72,7 @@ import org.fossify.messages.helpers.filteredDB
 import org.fossify.messages.helpers.getFolderNames
 import org.fossify.messages.helpers.isFolderItem
 import org.fossify.messages.helpers.searchMessages
+import org.fossify.messages.helpers.restoreRecycledMessages
 import org.fossify.messages.helpers.updateFolderMenuItems
 import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.withoutStoredSpamOnly
@@ -118,7 +118,7 @@ class MainActivity : SimpleActivity() {
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
 
-        checkAndDeleteOldRecycleBinMessages()
+        restoreRecycledMessages()
         clearAllMessagesIfNeeded {
             loadMessages()
         }
@@ -668,7 +668,7 @@ class MainActivity : SimpleActivity() {
                     searchResults = searchResults,
                     recyclerView = binding.searchResultsList,
                     highlightText = searchedText,
-                    deleteMessages = { messages, toRecycleBin -> deleteSearchedMessages(messages, toRecycleBin) }
+                    deleteMessages = { deleteSearchedMessages(it) }
                 ) {
                     hideKeyboard()
                     Intent(this, ThreadActivity::class.java).apply {
@@ -689,8 +689,8 @@ class MainActivity : SimpleActivity() {
     }
 
     // Deletes messages selected in the search results, as the conversation screen does, and repeats the search.
-    private fun deleteSearchedMessages(messages: List<Message>, toRecycleBin: Boolean) {
-        deleteMessagesFromSearch(messages, toRecycleBin)
+    private fun deleteSearchedMessages(messages: List<Message>) {
+        deleteMessagesFromSearch(messages)
         runOnUiThread {
             if (binding.mainMenu.isSearchOpen) {
                 searchTextChanged(lastSearchedText, forceUpdate = true)

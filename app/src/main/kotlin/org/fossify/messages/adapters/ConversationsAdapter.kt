@@ -13,6 +13,7 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.messages.R
 import org.fossify.messages.activities.SimpleActivity
+import org.fossify.messages.dialogs.DeleteConversationsDialog
 import org.fossify.messages.dialogs.RenameConversationDialog
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.deleteConversation
@@ -133,12 +134,14 @@ class ConversationsAdapter(
 
     private fun askConfirmDelete() {
         val itemsCnt = selectedKeys.size
-        val items = resources.getQuantityString(R.plurals.delete_conversations, itemsCnt, itemsCnt)
+        val question = resources.getQuantityString(R.plurals.delete_conversations_permanently, itemsCnt, itemsCnt)
+        val archive = if (activity.config.isArchiveAvailable) {
+            { ensureBackgroundThread { archiveConversations() } }
+        } else {
+            null
+        }
 
-        val baseString = org.fossify.commons.R.string.deletion_confirmation
-        val question = String.format(resources.getString(baseString), items)
-
-        ConfirmationDialog(activity, question) {
+        DeleteConversationsDialog(activity, question, archive) {
             ensureBackgroundThread {
                 deleteConversations()
             }

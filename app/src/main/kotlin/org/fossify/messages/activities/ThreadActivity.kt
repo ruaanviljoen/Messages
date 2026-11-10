@@ -108,6 +108,7 @@ import org.fossify.messages.adapters.AutoCompleteTextViewAdapter
 import org.fossify.messages.adapters.ThreadAdapter
 import org.fossify.messages.databinding.ActivityThreadBinding
 import org.fossify.messages.databinding.ItemSelectedContactBinding
+import org.fossify.messages.dialogs.DeleteConversationsDialog
 import org.fossify.messages.dialogs.GroupMessageSendDialog
 import org.fossify.messages.dialogs.InvalidNumberDialog
 import org.fossify.messages.dialogs.RenameConversationDialog
@@ -1237,8 +1238,9 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun askConfirmDelete() {
-        val confirmationMessage = R.string.delete_whole_conversation_confirmation
-        ConfirmationDialog(this, getString(confirmationMessage)) {
+        val canArchive = config.isArchiveAvailable && conversation?.isArchived == false && !isRecycleBin
+        val archive = ::archiveConversation.takeIf { canArchive }
+        DeleteConversationsDialog(this, getString(R.string.delete_conversation_permanently), archive) {
             ensureBackgroundThread {
                 if (isRecycleBin) {
                     emptyMessagesRecycleBinForConversation(threadId)

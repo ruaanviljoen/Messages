@@ -44,7 +44,12 @@
     <string name="no_filtered_conversations">No conversations match this filter</string>
     <string name="open_folder">Open %s</string>
     <string name="open_spam">Open Spam</string>
-    <string name="open_recycle_bin">Open recycle bin</string>
     <string name="open_archived_conversations">Open archived conversations</string>
     <string name="choose_contact">Choose a contact</string>
+    <plurals name="delete_conversations_permanently">
+        <item quantity="one">Delete %d conversation permanently? This can\'t be undone.</item>
+        <item quantity="other">Delete %d conversations permanently? This can\'t be undone.</item>
+    </plurals>
+    <string name="delete_conversation_permanently">Delete this conversation permanently? This can\'t be undone.</string>
+    <string name="archive_instead">Archive instead</string>
 </resources>

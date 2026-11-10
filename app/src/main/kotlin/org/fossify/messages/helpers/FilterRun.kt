@@ -10,7 +10,6 @@ import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
 import org.fossify.messages.extensions.getMMSSender
 import org.fossify.messages.extensions.getMessages
-import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.models.FilteredMessage
 
 internal const val MILLIS_PER_SECOND = 1000
@@ -43,14 +42,13 @@ data class FilterRun(
 }
 
 /**
- * Works out what the filters would change, without changing anything. Messages the user restored to the inbox, and
- * messages already in the recycle bin, are left alone. Entries whose message is gone, or whose id now belongs to
+ * Works out what the filters would change, without changing anything. Messages the user restored to the inbox are
+ * left alone. Entries whose message is gone, or whose id now belongs to
  * another message, are [FilterRun.stale]. Slow, so run it off the main thread.
  */
 fun Context.planFilterRun(): FilterRun {
     val filter = MessageFilter(this)
     val entries = filteredDB.getAll().associateByTo(HashMap()) { it.id to it.isMMS }
-    val recycled = messagesDB.getAllRecycleBinMessages().map { it.id to it.isMMS }.toSet()
     val toFolders = ArrayList<FilteredMessage>()
     val toInbox = ArrayList<FilteredMessage>()
     val toDelete = ArrayList<FilteredMessage>()
@@ -64,7 +62,7 @@ fun Context.planFilterRun(): FilterRun {
             stale += stored
         }
 
-        if (entry?.restored == true || (message.id to message.isMMS) in recycled) {
+        if (entry?.restored == true) {
             return@forEachReceivedMessage
         }
 

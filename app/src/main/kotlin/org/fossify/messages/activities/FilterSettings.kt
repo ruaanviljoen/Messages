@@ -2,6 +2,7 @@ package org.fossify.messages.activities
 
 import android.content.Intent
 import android.text.InputType
+import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.value
@@ -40,6 +41,12 @@ fun SimpleActivity.setupFilterSettings(binding: ActivitySettingsBinding) = bindi
     }
 
     settingsRunFiltersHolder.setOnClickListener { offerFilterRun(showIfNoChanges = true) }
+
+    // this fork has no recycle bin, see Config.useRecycleBin
+    settingsRecycleBinLabel.beGone()
+    settingsUseRecycleBinHolder.beGone()
+    settingsEmptyRecycleBinHolder.beGone()
+    settingsRecycleBinDivider.beGone()
 }
 
 // One number or sender name per line. They apply to the Spam rule only.

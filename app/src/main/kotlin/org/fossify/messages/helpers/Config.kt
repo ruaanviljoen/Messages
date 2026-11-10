@@ -116,8 +116,9 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(SOFT_KEYBOARD_HEIGHT, context.getDefaultKeyboardHeight())
         set(keyboardHeight) = prefs.edit().putInt(SOFT_KEYBOARD_HEIGHT, keyboardHeight).apply()
 
+    // This fork has no recycle bin: Fossify deprecated it (#290), and it never covered whole conversations.
     var useRecycleBin: Boolean
-        get() = prefs.getBoolean(USE_RECYCLE_BIN, false)
+        get() = false
         set(useRecycleBin) = prefs.edit().putBoolean(USE_RECYCLE_BIN, useRecycleBin).apply()
 
     var lastRecycleBinCheck: Long

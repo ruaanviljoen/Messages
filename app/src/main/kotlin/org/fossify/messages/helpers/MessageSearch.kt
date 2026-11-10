@@ -14,7 +14,6 @@ import org.fossify.messages.extensions.deleteScheduledMessage
 import org.fossify.messages.extensions.getMMSSender
 import org.fossify.messages.extensions.getNameAndPhotoFromPhoneNumber
 import org.fossify.messages.extensions.messagesDB
-import org.fossify.messages.extensions.moveMessageToRecycleBin
 import org.fossify.messages.extensions.updateLastConversationMessage
 import org.fossify.messages.messaging.cancelScheduleSendPendingIntent
 import org.fossify.messages.models.Message
@@ -79,9 +78,7 @@ fun Context.searchMessages(text: String): List<Message> {
         }
     }
 
-    // messages in the recycle bin are still in the store, but are not shown outside the recycle bin
-    val recycled = messagesDB.getAllRecycleBinMessages().map { it.id }.toSet()
-    return found.filterNot { it.id in recycled } + messagesDB.getMessagesWithText("%$text%").filter { it.isScheduled }
+    return found + messagesDB.getMessagesWithText("%$text%").filter { it.isScheduled }
 }
 
 private const val ASCII_LIMIT = 128
@@ -129,21 +126,13 @@ private fun Context.searchResultMessage(
 }
 
 /** Deletes messages selected in the search results, as the conversation screen does. Run it off the main thread. */
-fun Context.deleteMessagesFromSearch(messages: List<Message>, toRecycleBin: Boolean) {
+fun Context.deleteMessagesFromSearch(messages: List<Message>) {
     messages.forEach {
-        when {
-            it.isScheduled -> {
-                deleteScheduledMessage(it.id)
-                cancelScheduleSendPendingIntent(it.id)
-            }
-
-            toRecycleBin -> {
-                messagesDB.insertOrUpdate(it)
-                moveMessageToRecycleBin(it.id)
-                filteredDB.delete(it.id, it.isMMS)
-            }
-
-            else -> deleteMessage(it.id, it.isMMS)
+        if (it.isScheduled) {
+            deleteScheduledMessage(it.id)
+            cancelScheduleSendPendingIntent(it.id)
+        } else {
+            deleteMessage(it.id, it.isMMS)
         }
     }
     updateLastConversationMessage(messages.map { it.threadId }.distinct())

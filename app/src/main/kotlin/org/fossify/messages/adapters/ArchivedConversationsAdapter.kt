@@ -33,10 +33,7 @@ class ArchivedConversationsAdapter(
 
     private fun askConfirmDelete() {
         val itemsCnt = selectedKeys.size
-        val items = resources.getQuantityString(R.plurals.delete_conversations, itemsCnt, itemsCnt)
-
-        val baseString = org.fossify.commons.R.string.deletion_confirmation
-        val question = String.format(resources.getString(baseString), items)
+        val question = resources.getQuantityString(R.plurals.delete_conversations_permanently, itemsCnt, itemsCnt)
 
         ConfirmationDialog(activity, question) {
             ensureBackgroundThread {
