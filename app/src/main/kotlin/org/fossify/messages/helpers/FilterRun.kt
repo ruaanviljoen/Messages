@@ -17,8 +17,8 @@ internal const val MILLIS_PER_SECOND = 1000
 
 /**
  * What running the filters over the received messages on the phone would change: messages moving to a folder (Spam or
- * a rule's folder), back to the inbox, or deleted. [keywordCounts] counts the messages matching each Spam keyword and
- * [ruleCounts] the messages each rule takes, by rule id.
+ * a rule's folder), back to the inbox, or deleted. Of the messages that move or are deleted, [keywordCounts] counts
+ * those matching each Spam keyword and [ruleCounts] those each rule takes, by rule id.
  */
 data class FilterRun(
     val toFolders: List<FilteredMessage>,
@@ -59,14 +59,17 @@ fun Context.planFilterRun(): FilterRun {
         }
 
         val keywords = filter.spam.findKeywords(address, body)
-        keywords.forEach { keywordCounts.merge(it, 1, Int::plus) }
         val result = if (keywords.isNotEmpty()) filter.spamResult() else filter.filterByRules(address, body)
-        result?.rule?.let { ruleCounts.merge(it.id, 1, Int::plus) }
         when {
             result == null -> if (entry != null) toInbox += entry
             result.deletes -> toDelete += message
             entry?.folderId != result.folderId -> toFolders += message.copy(folderId = result.folderId)
+            else -> return@forEachReceivedMessage // already in its folder
         }
+
+        // counted only when the message changes, so messages already in their folder are not reported again
+        keywords.forEach { keywordCounts.merge(it, 1, Int::plus) }
+        result?.rule?.let { ruleCounts.merge(it.id, 1, Int::plus) }
     }
 
     // An entry not seen above is stale only if its message is really gone, not merely missed by a failed read.
