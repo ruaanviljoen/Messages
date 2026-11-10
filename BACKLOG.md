@@ -38,6 +38,14 @@ The fix for search results disappearing after rotation is a Fossify bug, not one
 - The same fix is in the work branch as two commits ("Keep search results when the phone rotates" and "Reopen an empty search after rotation too").
 - This branch does not contain the fork's `.githooks`, so run gitleaks by hand before pushing to it.
 
+### After Fossify merges a fix for this
+
+The fix is in both this fork's work branch and the upstream branch, so a later merge from Fossify needs this check:
+
+- If Fossify merges the code unchanged, the merge is clean and nothing needs doing. This was tested: merging `fix/search-rotation` into a copy of the work branch brought in only the changelog line, with no conflicts.
+- If Fossify changes the code during review, the merge conflicts in `onRestoreInstanceState` in `MainActivity.kt`. Keep Fossify's version and drop ours.
+- If Fossify fixes it in Fossify Commons (`MySearchMenu`) instead, it arrives as a Commons version update and Git may not flag anything. Delete our `onRestoreInstanceState` from `MainActivity.kt` after that merge, so the search is not reopened twice.
+
 ### Fossify's rules that apply
 
 From Fossify's contribution guide (FossifyOrg/General-Discussion):
