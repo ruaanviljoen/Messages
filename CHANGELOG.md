@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Tapping the title of a conversation opens the contact, or the conversation details for groups and unsaved numbers
+- Added opening the contact by tapping the conversation title
 
 ## [1.10.2] - 2026-10-21
 ### Changed
