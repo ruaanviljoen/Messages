@@ -1,6 +1,7 @@
 package org.fossify.messages.activities
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import org.fossify.commons.extensions.beGoneIf
@@ -9,26 +10,32 @@ import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.messages.R
-import org.fossify.messages.adapters.SpamConversationsAdapter
+import org.fossify.messages.adapters.FolderConversationsAdapter
 import org.fossify.messages.databinding.ActivityRecycleBinConversationsBinding
-import org.fossify.messages.helpers.IS_SPAM
+import org.fossify.messages.helpers.FOLDER_ID
+import org.fossify.messages.helpers.FOLDER_NAME
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
-import org.fossify.messages.helpers.getSpamConversations
+import org.fossify.messages.helpers.getFolderConversations
 import org.fossify.messages.models.Conversation
 import org.fossify.messages.models.Events
+import org.fossify.messages.models.SPAM_FOLDER_ID
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 
-/** The Spam folder: the conversations that have spam. It works like the recycle bin, with the same layout. */
-class SpamActivity : SimpleActivity() {
+/**
+ * A folder (Spam or a rule's folder): the conversations that have messages in it. It works like the recycle bin, with
+ * the same layout.
+ */
+class FolderActivity : SimpleActivity() {
     private val binding by viewBinding(ActivityRecycleBinConversationsBinding::inflate)
+    private val folderId by lazy { intent.getLongExtra(FOLDER_ID, SPAM_FOLDER_ID) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        binding.recycleBinToolbar.title = getString(R.string.spam)
+        binding.recycleBinToolbar.title = intent.getStringExtra(FOLDER_NAME) ?: getString(R.string.spam)
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
         setupMaterialScrollListener(scrollingView = binding.conversationsList, topAppBar = binding.recycleBinAppbar)
         EventBus.getDefault().register(this)
@@ -37,7 +44,7 @@ class SpamActivity : SimpleActivity() {
     override fun onResume() {
         super.onResume()
         setupTopAppBar(binding.recycleBinAppbar, NavigationIcon.Arrow)
-        loadSpamConversations()
+        loadFolderConversations()
     }
 
     override fun onDestroy() {
@@ -45,11 +52,11 @@ class SpamActivity : SimpleActivity() {
         EventBus.getDefault().unregister(this)
     }
 
-    private fun loadSpamConversations() {
+    private fun loadFolderConversations() {
         ensureBackgroundThread {
-            val conversations = getSpamConversations().sortedByDescending { it.date }
+            val conversations = getFolderConversations(folderId).sortedByDescending { it.date }
             runOnUiThread {
-                binding.noConversationsPlaceholder.text = getString(R.string.no_spam)
+                binding.noConversationsPlaceholder.text = getString(R.string.no_messages_in_folder)
                 binding.noConversationsPlaceholder.beVisibleIf(conversations.isEmpty())
                 binding.conversationsFastscroller.beGoneIf(conversations.isEmpty())
                 getOrCreateAdapter().updateConversations(ArrayList(conversations))
@@ -57,10 +64,11 @@ class SpamActivity : SimpleActivity() {
         }
     }
 
-    private fun getOrCreateAdapter(): SpamConversationsAdapter {
-        return binding.conversationsList.adapter as? SpamConversationsAdapter
-            ?: SpamConversationsAdapter(
+    private fun getOrCreateAdapter(): FolderConversationsAdapter {
+        return binding.conversationsList.adapter as? FolderConversationsAdapter
+            ?: FolderConversationsAdapter(
                 activity = this,
+                folderId = folderId,
                 recyclerView = binding.conversationsList,
                 onRefresh = { notifyDatasetChanged() },
                 itemClick = { openConversation(it as Conversation) }
@@ -76,13 +84,20 @@ class SpamActivity : SimpleActivity() {
         Intent(this, ThreadActivity::class.java).apply {
             putExtra(THREAD_ID, conversation.threadId)
             putExtra(THREAD_TITLE, conversation.title)
-            putExtra(IS_SPAM, true)
+            putExtra(FOLDER_ID, folderId)
             startActivity(this)
+        }
+    }
+
+    companion object {
+        fun intent(context: Context, folderId: Long, name: String) = Intent(context, FolderActivity::class.java).apply {
+            putExtra(FOLDER_ID, folderId)
+            putExtra(FOLDER_NAME, name)
         }
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun refreshConversations(@Suppress("unused") event: Events.RefreshConversations) {
-        loadSpamConversations()
+        loadFolderConversations()
     }
 }

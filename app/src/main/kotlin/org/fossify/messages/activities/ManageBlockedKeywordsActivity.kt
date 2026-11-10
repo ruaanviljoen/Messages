@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.text.InputType
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.getAlertDialogBuilder
@@ -29,6 +28,7 @@ import org.fossify.messages.databinding.ActivityManageBlockedKeywordsBinding
 import org.fossify.messages.databinding.DialogAddBlockedKeywordBinding
 import org.fossify.messages.dialogs.AddBlockedKeywordDialog
 import org.fossify.messages.dialogs.ExportBlockedKeywordsDialog
+import org.fossify.messages.dialogs.FilterRunDialog
 import org.fossify.messages.dialogs.ManageBlockedKeywordsAdapter
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.toArrayList
@@ -36,9 +36,6 @@ import org.fossify.messages.helpers.BlockedKeywordsExporter
 import org.fossify.messages.helpers.BlockedKeywordsImporter
 import org.fossify.messages.helpers.SPAM_ACTION_DELETE
 import org.fossify.messages.helpers.SPAM_ACTION_MOVE
-import org.fossify.messages.helpers.SpamFilterRun
-import org.fossify.messages.helpers.applySpamFilterRun
-import org.fossify.messages.helpers.planSpamFilterRun
 import java.io.FileOutputStream
 import java.io.OutputStream
 
@@ -47,7 +44,7 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
     private val binding by viewBinding(ActivityManageBlockedKeywordsBinding::inflate)
 
     // Only the latest run of the spam filter is offered; older ones were worked out with outdated settings.
-    private var latestSpamFilterRun = 0
+    private var latestFilterRun = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -292,38 +289,9 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
             .apply { setupDialogStuff(dialogBinding.root, this, R.string.spam_exempt_numbers) }
     }
 
-    // Works out what the spam filter would change in the messages already on the phone and asks before changing it.
+    // Offers to run the filters over the messages already on the phone; only the latest offer is shown.
     private fun runSpamFilter(showIfNoChanges: Boolean = false) {
-        if (showIfNoChanges) {
-            toast(R.string.checking_messages)
-        }
-
-        val runNumber = ++latestSpamFilterRun
-        ensureBackgroundThread {
-            val run = planSpamFilterRun()
-            runOnUiThread {
-                if (runNumber != latestSpamFilterRun || isFinishing) {
-                    return@runOnUiThread
-                } else if (run.hasChanges) {
-                    ConfirmationDialog(
-                        activity = this,
-                        message = describe(run),
-                        positive = R.string.apply,
-                        negative = org.fossify.commons.R.string.cancel
-                    ) {
-                        ensureBackgroundThread { applySpamFilterRun(run) }
-                    }
-                } else if (showIfNoChanges) {
-                    toast(R.string.spam_filter_no_changes)
-                }
-            }
-        }
-    }
-
-    private fun describe(run: SpamFilterRun): String {
-        val keywordLines = run.keywordCounts.entries.sortedByDescending { it.value }
-            .joinToString("\n") { getString(R.string.spam_keyword_count, it.key, it.value) }
-        return getString(R.string.spam_filter_run_summary, run.toSpam.size, run.toInbox.size, run.toDelete.size) +
-            if (keywordLines.isEmpty()) "" else "\n\n" + getString(R.string.spam_keyword_counts) + "\n" + keywordLines
+        val runNumber = ++latestFilterRun
+        FilterRunDialog(this, showIfNoChanges) { runNumber == latestFilterRun }
     }
 }

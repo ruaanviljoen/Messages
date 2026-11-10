@@ -21,8 +21,8 @@ import org.fossify.messages.extensions.shouldUnarchive
 import org.fossify.messages.extensions.showReceivedMessageNotification
 import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.extensions.messagesDB
-import org.fossify.messages.helpers.SpamFilter
-import org.fossify.messages.helpers.handleReceivedSpam
+import org.fossify.messages.helpers.MessageFilter
+import org.fossify.messages.helpers.fileReceivedMessage
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
 import org.fossify.messages.models.Message
@@ -67,10 +67,13 @@ class MmsReceiver : MmsReceivedReceiver() {
         size: Int,
         address: String
     ) {
-        if (SpamFilter(context).isSpam(address, mms.body)) {
+        val filterResult = MessageFilter(context).filter(address, mms.body)
+        if (filterResult != null) {
             context.messagesDB.insertOrUpdate(mms)
-            context.handleReceivedSpam(mms)
-            return
+            context.fileReceivedMessage(mms, filterResult)
+            if (!filterResult.notifies) {
+                return
+            }
         }
 
         val glideBitmap = try {

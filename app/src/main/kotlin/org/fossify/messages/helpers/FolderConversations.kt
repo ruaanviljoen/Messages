@@ -5,35 +5,42 @@ import android.provider.Telephony.Mms
 import android.provider.Telephony.Sms
 import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
-import org.fossify.messages.databases.SpamDatabase
+import org.fossify.messages.databases.FilterDatabase
 import org.fossify.messages.extensions.conversationsDB
 import org.fossify.messages.extensions.getConversations
 import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.models.Conversation
-import org.fossify.messages.models.SpamMessage
+import org.fossify.messages.models.FilteredMessage
 import org.fossify.messages.models.SpamThread
 
-// How conversations with spam appear in the inbox and in the Spam folder.
+// How conversations with messages in folders (Spam or a rule's folder) appear in the inbox and in the folders.
 
-val Context.spamThreadsDB get() = SpamDatabase.getInstance(this).SpamThreadsDao()
+val Context.spamThreadsDB get() = FilterDatabase.getInstance(this).SpamThreadsDao()
 
-/** Returns all of a conversation's spam to the inbox. Run it off the main thread. */
-fun Context.restoreConversationFromSpam(threadId: Long) =
-    spamDB.insertAll(spamDB.getThreadsSpam(listOf(threadId)).map { it.copy(restored = true) })
+/** Returns a conversation's messages in a folder to the inbox. Run it off the main thread. */
+fun Context.restoreConversationFromFolder(threadId: Long, folderId: Long) = filteredDB.insertAll(
+    filteredDB.getThreadsFiled(listOf(threadId)).filter { it.folderId == folderId }.map { it.copy(restored = true) }
+)
 
-/** Deletes a conversation's spam and leaves its other messages. Run it off the main thread. */
-fun Context.deleteConversationSpam(threadId: Long) {
-    val dates = getSpamDates(threadId)
+/** Deletes a conversation's messages in a folder and leaves its other messages. Run it off the main thread. */
+fun Context.deleteConversationFromFolder(threadId: Long, folderId: Long) {
+    val entries = getFilteredMessages(threadId)
     getMessages(threadId, includeScheduledMessages = false, limit = Int.MAX_VALUE)
-        .filter { dates[it.id to it.isMMS] == it.date }
+        .filter { message ->
+            val entry = entries[message.id to message.isMMS]
+            entry != null && entry.date == message.date && entry.folderId == folderId
+        }
         .forEach { deleteFilteredMessage(it) }
 }
 
-/** The conversations that have spam, each with its newest spam message as the snippet. Run it off the main thread. */
-fun Context.getSpamConversations(): ArrayList<Conversation> {
-    return spamDB.getSpam().groupBy { it.threadId }.mapNotNullTo(ArrayList()) { (threadId, entries) ->
+/**
+ * The conversations that have messages in a folder, each with its newest message there as the snippet. Run it off the
+ * main thread.
+ */
+fun Context.getFolderConversations(folderId: Long): ArrayList<Conversation> {
+    return filteredDB.getFolder(folderId).groupBy { it.threadId }.mapNotNullTo(ArrayList()) { (threadId, entries) ->
         val newest = entries.sortedByDescending { it.date }.firstNotNullOfOrNull { entry ->
-            getSpamText(entry)?.let { it to entry.date }
+            getFilteredText(entry)?.let { it to entry.date }
         } ?: return@mapNotNullTo null
         val conversation = conversationsDB.getConversationWithThreadId(threadId)
             ?: getConversations(threadId).firstOrNull()
@@ -41,8 +48,8 @@ fun Context.getSpamConversations(): ArrayList<Conversation> {
     }
 }
 
-// The text of a message in Spam, or null if it is gone or its id now belongs to another message.
-private fun Context.getSpamText(entry: SpamMessage): String? {
+// The text of a message in a folder, or null if it is gone or its id now belongs to another message.
+private fun Context.getFilteredText(entry: FilteredMessage): String? {
     var text: String? = null
     if (entry.isMMS) {
         queryCursor(Mms.CONTENT_URI, arrayOf(Mms.DATE), "${Mms._ID} = ${entry.id}") {
@@ -61,13 +68,13 @@ private fun Context.getSpamText(entry: SpamMessage): String? {
 }
 
 /**
- * [conversations] as the inbox shows them: without the ones whose messages are all in Spam, and with the newest
- * message that isn't spam as the snippet and date. A conversation that can't be read is shown unchanged. What it
+ * [conversations] as the inbox shows them: without the ones whose messages are all in folders, and with the newest
+ * message that isn't in a folder as the snippet and date. A conversation that can't be read is shown unchanged. What it
  * finds is stored for [withoutStoredSpamOnly]. Run it off the main thread.
  */
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
 fun Context.withoutSpamOnly(conversations: List<Conversation>): ArrayList<Conversation> {
-    val spam = spamDB.getSpam().groupBy { it.threadId }
+    val spam = filteredDB.getFiled().groupBy { it.threadId }
     val threads = ArrayList<SpamThread>()
     val shown = conversations.mapNotNullTo(ArrayList()) { conversation ->
         val entries = spam[conversation.threadId]

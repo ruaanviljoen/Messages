@@ -22,8 +22,9 @@ import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.extensions.shouldUnarchive
 import org.fossify.messages.extensions.showReceivedMessageNotification
 import org.fossify.messages.extensions.updateConversationArchivedStatus
-import org.fossify.messages.helpers.SpamFilter
-import org.fossify.messages.helpers.handleReceivedSpam
+import org.fossify.messages.helpers.FilterResult
+import org.fossify.messages.helpers.MessageFilter
+import org.fossify.messages.helpers.fileReceivedMessage
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
 import org.fossify.messages.models.Message
@@ -54,7 +55,7 @@ class SmsReceiver : BroadcastReceiver() {
                     if (result == ContactLookupResult.NotFound) return@ensureBackgroundThread
                 }
 
-                val isSpam = SpamFilter(appContext).isSpam(address, body)
+                val filterResult = MessageFilter(appContext).filter(address, body)
                 val date = System.currentTimeMillis()
                 val threadId = appContext.getThreadId(address)
                 val subscriptionId = intent.getIntExtra("subscription", -1)
@@ -68,7 +69,7 @@ class SmsReceiver : BroadcastReceiver() {
                     threadId = threadId,
                     subscriptionId = subscriptionId,
                     status = status,
-                    isSpam = isSpam
+                    filterResult = filterResult
                 )
             } finally {
                 pending.finish()
@@ -87,7 +88,7 @@ class SmsReceiver : BroadcastReceiver() {
         type: Int = Telephony.Sms.MESSAGE_TYPE_INBOX,
         subscriptionId: Int,
         status: Int,
-        isSpam: Boolean
+        filterResult: FilterResult?
     ) {
         val photoUri = SimpleContactsHelper(context).getPhotoUriFromPhoneNumber(address)
         val bitmap = context.getNotificationBitmap(photoUri)
@@ -103,8 +104,8 @@ class SmsReceiver : BroadcastReceiver() {
             subscriptionId = subscriptionId
         )
 
-        // spam must not become the conversation's snippet in the inbox
-        if (!isSpam) {
+        // a filtered message must not become the conversation's snippet in the inbox
+        if (filterResult == null) {
             context.getConversations(threadId).firstOrNull()?.let { conv ->
                 runCatching { context.insertOrUpdateConversation(conv) }
             }
@@ -142,9 +143,11 @@ class SmsReceiver : BroadcastReceiver() {
         )
 
         context.messagesDB.insertOrUpdate(message)
-        if (isSpam) {
-            context.handleReceivedSpam(message)
-            return
+        if (filterResult != null) {
+            context.fileReceivedMessage(message, filterResult)
+            if (!filterResult.notifies) {
+                return
+            }
         }
 
         if (context.shouldUnarchive()) {

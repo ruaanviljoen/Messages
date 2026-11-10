@@ -59,30 +59,33 @@ import org.fossify.messages.extensions.clearAllMessagesIfNeeded
 import org.fossify.messages.extensions.clearExpiredScheduledMessages
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.conversationsDB
-import org.fossify.messages.extensions.deleteMessage
-import org.fossify.messages.extensions.deleteScheduledMessage
 import org.fossify.messages.extensions.getConversations
 import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.messagesDB
-import org.fossify.messages.extensions.moveMessageToRecycleBin
-import org.fossify.messages.extensions.updateLastConversationMessage
-import org.fossify.messages.helpers.IS_SPAM
+import org.fossify.messages.helpers.FOLDER_ID
 import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
+import org.fossify.messages.helpers.deleteMessagesFromSearch
+import org.fossify.messages.helpers.filterRulesDB
+import org.fossify.messages.helpers.filteredDB
+import org.fossify.messages.helpers.getFolderNames
 import org.fossify.messages.helpers.searchMessages
-import org.fossify.messages.helpers.spamDB
 import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.withoutStoredSpamOnly
-import org.fossify.messages.messaging.cancelScheduleSendPendingIntent
 import org.fossify.messages.models.Conversation
 import org.fossify.messages.models.Events
 import org.fossify.messages.models.Message
+import org.fossify.messages.models.SPAM_FOLDER_ID
 import org.fossify.messages.models.SearchResult
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
+
+// Folders of the filter rules in the main menu: their group, and their position after Spam.
+private const val FOLDERS_MENU_GROUP = 1
+private const val FOLDERS_MENU_ORDER = 20
 
 class MainActivity : SimpleActivity() {
     override var isSearchBarEnabled = true
@@ -93,8 +96,9 @@ class MainActivity : SimpleActivity() {
     private var storedFontSize = 0
     private var lastSearchedText = ""
 
-    // Search results that are in Spam, by message id and thread id.
-    private var spamSearchResults = emptySet<Pair<Long, Long>>()
+    // The folders of search results that are in a folder, by message id and thread id, and the folders' names.
+    private var searchResultFolders = emptyMap<Pair<Long, Long>, Long>()
+    private var folderNames = emptyMap<Long, String>()
     private var bus: EventBus? = null
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -207,8 +211,13 @@ class MainActivity : SimpleActivity() {
         }
 
         binding.mainMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
+            if (menuItem.groupId == FOLDERS_MENU_GROUP) {
+                openFolder(menuItem.itemId.toLong(), menuItem.title.toString())
+                return@setOnMenuItemClickListener true
+            }
+
             when (menuItem.itemId) {
-                R.id.show_spam -> startActivity(Intent(applicationContext, SpamActivity::class.java))
+                R.id.show_spam -> openFolder(SPAM_FOLDER_ID, getString(R.string.spam))
                 R.id.show_recycle_bin -> launchRecycleBin()
                 R.id.show_archived -> launchArchivedConversations()
                 R.id.settings -> launchSettings()
@@ -224,6 +233,25 @@ class MainActivity : SimpleActivity() {
             findItem(R.id.show_recycle_bin).isVisible = config.useRecycleBin
             findItem(R.id.show_archived).isVisible = config.isArchiveAvailable
         }
+        updateFolderMenuItems()
+    }
+
+    // The folders of the filter rules appear in the menu after Spam.
+    private fun updateFolderMenuItems() {
+        ensureBackgroundThread {
+            val folders = filterRulesDB.getFolders()
+            runOnUiThread {
+                binding.mainMenu.requireToolbar().menu.apply {
+                    removeGroup(FOLDERS_MENU_GROUP)
+                    folders.forEach { add(FOLDERS_MENU_GROUP, it.id.toInt(), FOLDERS_MENU_ORDER, it.name) }
+                }
+            }
+        }
+    }
+
+    private fun openFolder(folderId: Long, name: String) {
+        hideKeyboard()
+        startActivity(FolderActivity.intent(this, folderId, name))
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
@@ -563,9 +591,12 @@ class MainActivity : SimpleActivity() {
                 val searchQuery = "%$text%"
                 val messages = searchMessages(text)
                 val conversations = conversationsDB.getConversationsWithText(searchQuery)
-                val spam = spamDB.getSpam().map { it.id to it.threadId }.toSet()
+                val filed = filteredDB.getFiled().associate { (it.id to it.threadId) to it.folderId }
+                val names = getFolderNames()
                 if (text == lastSearchedText) {
-                    spamSearchResults = messages.map { it.id to it.threadId }.filter { it in spam }.toSet()
+                    searchResultFolders = messages.map { it.id to it.threadId }.filter { it in filed }
+                        .associateWith { filed.getValue(it) }
+                    folderNames = names
                     showSearchResults(messages, conversations, text)
                 }
             }
@@ -612,10 +643,10 @@ class MainActivity : SimpleActivity() {
                 showCurrentYear = true
             )
 
-            val isSpam = (message.id to message.threadId) in spamSearchResults
+            val folderName = searchResultFolders[message.id to message.threadId]?.let { folderNames[it] }
             val searchResult = SearchResult(
                 messageId = message.id,
-                title = if (isSpam) "$recipient · ${getString(R.string.spam)}" else recipient,
+                title = if (folderName != null) "$recipient · $folderName" else recipient,
                 snippet = message.body,
                 date = date,
                 threadId = message.threadId,
@@ -643,8 +674,8 @@ class MainActivity : SimpleActivity() {
                         putExtra(THREAD_ID, (it as SearchResult).threadId)
                         putExtra(THREAD_TITLE, it.title)
                         putExtra(SEARCHED_MESSAGE_ID, it.messageId)
-                        // a result in Spam opens the conversation's spam
-                        putExtra(IS_SPAM, (it.messageId to it.threadId) in spamSearchResults)
+                        // a result in a folder opens the conversation's messages in that folder
+                        searchResultFolders[it.messageId to it.threadId]?.let { id -> putExtra(FOLDER_ID, id) }
                         startActivity(this)
                     }
                 }.apply {
@@ -658,26 +689,7 @@ class MainActivity : SimpleActivity() {
 
     // Deletes messages selected in the search results, as the conversation screen does, and repeats the search.
     private fun deleteSearchedMessages(messages: List<Message>, toRecycleBin: Boolean) {
-        messages.forEach {
-            when {
-                it.isScheduled -> {
-                    deleteScheduledMessage(it.id)
-                    cancelScheduleSendPendingIntent(it.id)
-                }
-
-                toRecycleBin -> {
-                    messagesDB.insertOrUpdate(it)
-                    moveMessageToRecycleBin(it.id)
-                    spamDB.delete(it.id, it.isMMS)
-                }
-
-                else -> deleteMessage(it.id, it.isMMS)
-            }
-        }
-        updateLastConversationMessage(messages.map { it.threadId }.distinct())
-        // qualified, because this activity's event handlers have the same names
-        org.fossify.messages.helpers.refreshMessages()
-        org.fossify.messages.helpers.refreshConversations()
+        deleteMessagesFromSearch(messages, toRecycleBin)
         runOnUiThread {
             if (binding.mainMenu.isSearchOpen) {
                 searchTextChanged(lastSearchedText, forceUpdate = true)

@@ -4,24 +4,27 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import org.fossify.messages.models.SpamMessage
+import org.fossify.messages.models.FilteredMessage
 
 @Dao
-interface SpamDao {
+interface FilteredMessagesDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insert(spamMessage: SpamMessage)
+    fun insert(message: FilteredMessage)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertAll(spamMessages: List<SpamMessage>)
+    fun insertAll(messages: List<FilteredMessage>)
 
     @Query("SELECT * FROM spam_messages")
-    fun getAll(): List<SpamMessage>
+    fun getAll(): List<FilteredMessage>
 
     @Query("SELECT * FROM spam_messages WHERE restored = 0")
-    fun getSpam(): List<SpamMessage>
+    fun getFiled(): List<FilteredMessage>
+
+    @Query("SELECT * FROM spam_messages WHERE restored = 0 AND folder_id = :folderId")
+    fun getFolder(folderId: Long): List<FilteredMessage>
 
     @Query("SELECT * FROM spam_messages WHERE restored = 0 AND thread_id IN (:threadIds)")
-    fun getThreadsSpam(threadIds: List<Long>): List<SpamMessage>
+    fun getThreadsFiled(threadIds: List<Long>): List<FilteredMessage>
 
     @Query("DELETE FROM spam_messages WHERE id = :id AND is_mms = :isMMS")
     fun delete(id: Long, isMMS: Boolean)

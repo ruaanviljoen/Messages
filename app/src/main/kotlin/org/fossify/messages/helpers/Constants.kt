@@ -102,7 +102,9 @@ const val BLOCKED_KEYWORDS_EXPORT_DELIMITER = ","
 const val BLOCKED_KEYWORDS_EXPORT_EXTENSION = ".txt"
 
 // Spam filter
-const val IS_SPAM = "is_spam"
+const val FOLDER_ID = "folder_id"
+const val NO_FOLDER_ID = -1L
+const val FOLDER_NAME = "folder_name"
 const val SPAM_ACTION = "spam_action"
 const val FILTER_SAVED_CONTACTS = "filter_saved_contacts"
 const val SPAM_EXEMPT_NUMBERS = "spam_exempt_numbers"

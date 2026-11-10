@@ -9,9 +9,14 @@ import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
 import org.fossify.commons.models.PhoneNumber
 import org.fossify.commons.models.SimpleContact
+import org.fossify.messages.extensions.deleteMessage
+import org.fossify.messages.extensions.deleteScheduledMessage
 import org.fossify.messages.extensions.getMMSSender
 import org.fossify.messages.extensions.getNameAndPhotoFromPhoneNumber
 import org.fossify.messages.extensions.messagesDB
+import org.fossify.messages.extensions.moveMessageToRecycleBin
+import org.fossify.messages.extensions.updateLastConversationMessage
+import org.fossify.messages.messaging.cancelScheduleSendPendingIntent
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.NamePhoto
 
@@ -121,4 +126,27 @@ private fun Context.searchResultMessage(
         senderPhotoUri = namePhoto.photoUri.orEmpty(),
         subscriptionId = -1
     )
+}
+
+/** Deletes messages selected in the search results, as the conversation screen does. Run it off the main thread. */
+fun Context.deleteMessagesFromSearch(messages: List<Message>, toRecycleBin: Boolean) {
+    messages.forEach {
+        when {
+            it.isScheduled -> {
+                deleteScheduledMessage(it.id)
+                cancelScheduleSendPendingIntent(it.id)
+            }
+
+            toRecycleBin -> {
+                messagesDB.insertOrUpdate(it)
+                moveMessageToRecycleBin(it.id)
+                filteredDB.delete(it.id, it.isMMS)
+            }
+
+            else -> deleteMessage(it.id, it.isMMS)
+        }
+    }
+    updateLastConversationMessage(messages.map { it.threadId }.distinct())
+    refreshMessages()
+    refreshConversations()
 }

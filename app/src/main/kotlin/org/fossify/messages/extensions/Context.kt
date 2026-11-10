@@ -60,7 +60,7 @@ import org.fossify.messages.helpers.MessagingCache
 import org.fossify.messages.helpers.NotificationHelper
 import org.fossify.messages.helpers.ShortcutHelper
 import org.fossify.messages.helpers.generateRandomId
-import org.fossify.messages.helpers.spamDB
+import org.fossify.messages.helpers.filteredDB
 import org.fossify.messages.interfaces.AttachmentsDao
 import org.fossify.messages.interfaces.ConversationsDao
 import org.fossify.messages.interfaces.DraftsDao
@@ -864,7 +864,7 @@ fun Context.removeAllArchivedConversations(callback: (() -> Unit)? = null) {
 }
 
 fun Context.deleteConversation(threadId: Long) {
-    spamDB.deleteThread(threadId)
+    filteredDB.deleteThread(threadId)
     var uri = Sms.CONTENT_URI
     val selection = "${Sms.THREAD_ID} = ?"
     val selectionArgs = arrayOf(threadId.toString())
@@ -982,7 +982,7 @@ fun Context.deleteMessage(id: Long, isMMS: Boolean) {
     try {
         contentResolver.delete(uri, selection, selectionArgs)
         messagesDB.delete(id)
-        spamDB.delete(id, isMMS)
+        filteredDB.delete(id, isMMS)
     } catch (e: Exception) {
         showErrorToast(e)
     }

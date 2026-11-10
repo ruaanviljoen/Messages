@@ -97,7 +97,7 @@ class ThreadAdapter(
     recyclerView: MyRecyclerView,
     itemClick: (Any) -> Unit,
     val isRecycleBin: Boolean,
-    val isSpam: Boolean = false,
+    val isFolderView: Boolean = false,
     val deleteMessages: (messages: List<Message>, toRecycleBin: Boolean, fromRecycleBin: Boolean) -> Unit
 ) : MyRecyclerViewListAdapter<ThreadItem>(activity, recyclerView, ThreadItemDiffCallback(), itemClick) {
     private var fontSize = activity.getTextSize()
@@ -135,7 +135,7 @@ class ThreadAdapter(
             findItem(R.id.cab_forward_message).isVisible = isOneItemSelected
             findItem(R.id.cab_select_text).isVisible = isOneItemSelected && hasText
             findItem(R.id.cab_properties).isVisible = isOneItemSelected
-            findItem(R.id.cab_restore).isVisible = isRecycleBin || isSpam
+            findItem(R.id.cab_restore).isVisible = isRecycleBin || isFolderView
         }
     }
 

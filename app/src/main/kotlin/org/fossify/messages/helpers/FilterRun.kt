@@ -12,35 +12,41 @@ import org.fossify.messages.extensions.getMMSSender
 import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.markMessageRead
 import org.fossify.messages.extensions.messagesDB
-import org.fossify.messages.models.SpamMessage
+import org.fossify.messages.models.FilteredMessage
 
 internal const val MILLIS_PER_SECOND = 1000
 
-/** What running the spam filter over the received messages on the phone would change. */
-data class SpamFilterRun(
-    val toSpam: List<SpamMessage>,
-    val toInbox: List<SpamMessage>,
-    val toDelete: List<SpamMessage>,
-    val stale: List<SpamMessage>,
-    val keywordCounts: Map<String, Int>
+/**
+ * What running the filters over the received messages on the phone would change: messages moving to a folder (Spam or
+ * a rule's folder), back to the inbox, or deleted. [keywordCounts] counts the messages matching each Spam keyword and
+ * [ruleCounts] the messages each rule takes, by rule id.
+ */
+data class FilterRun(
+    val toFolders: List<FilteredMessage>,
+    val toInbox: List<FilteredMessage>,
+    val toDelete: List<FilteredMessage>,
+    val stale: List<FilteredMessage>,
+    val keywordCounts: Map<String, Int>,
+    val ruleCounts: Map<Long, Int>
 ) {
-    val hasChanges get() = toSpam.isNotEmpty() || toInbox.isNotEmpty() || toDelete.isNotEmpty()
+    val hasChanges get() = toFolders.isNotEmpty() || toInbox.isNotEmpty() || toDelete.isNotEmpty()
 }
 
 /**
- * Works out what the filter would change, without changing anything. Messages the user restored from Spam, and
- * messages already in the recycle bin, are left alone. Spam entries whose message is gone, or whose id now belongs to
- * another message, are [SpamFilterRun.stale]. Slow, so run it off the main thread.
+ * Works out what the filters would change, without changing anything. Messages the user restored to the inbox, and
+ * messages already in the recycle bin, are left alone. Entries whose message is gone, or whose id now belongs to
+ * another message, are [FilterRun.stale]. Slow, so run it off the main thread.
  */
-fun Context.planSpamFilterRun(): SpamFilterRun {
-    val filter = SpamFilter(this)
-    val entries = spamDB.getAll().associateByTo(HashMap()) { it.id to it.isMMS }
+fun Context.planFilterRun(): FilterRun {
+    val filter = MessageFilter(this)
+    val entries = filteredDB.getAll().associateByTo(HashMap()) { it.id to it.isMMS }
     val recycled = messagesDB.getAllRecycleBinMessages().map { it.id to it.isMMS }.toSet()
-    val toSpam = ArrayList<SpamMessage>()
-    val toInbox = ArrayList<SpamMessage>()
-    val toDelete = ArrayList<SpamMessage>()
-    val stale = ArrayList<SpamMessage>()
+    val toFolders = ArrayList<FilteredMessage>()
+    val toInbox = ArrayList<FilteredMessage>()
+    val toDelete = ArrayList<FilteredMessage>()
+    val stale = ArrayList<FilteredMessage>()
     val keywordCounts = HashMap<String, Int>()
+    val ruleCounts = HashMap<Long, Int>()
 
     forEachReceivedMessage { message, address, body ->
         val stored = entries.remove(message.id to message.isMMS)
@@ -53,25 +59,27 @@ fun Context.planSpamFilterRun(): SpamFilterRun {
             return@forEachReceivedMessage
         }
 
-        val keywords = filter.findKeywords(address, body)
+        val keywords = filter.spam.findKeywords(address, body)
         keywords.forEach { keywordCounts.merge(it, 1, Int::plus) }
+        val result = if (keywords.isNotEmpty()) filter.spamResult() else filter.filterByRules(address, body)
+        result?.rule?.let { ruleCounts.merge(it.id, 1, Int::plus) }
         when {
-            keywords.isEmpty() -> if (entry != null) toInbox += entry
-            filter.deletes -> toDelete += message
-            entry == null -> toSpam += message
+            result == null -> if (entry != null) toInbox += entry
+            result.deletes -> toDelete += message
+            entry?.folderId != result.folderId -> toFolders += message.copy(folderId = result.folderId)
         }
     }
 
     // An entry not seen above is stale only if its message is really gone, not merely missed by a failed read.
     stale += entries.values.filterNot { messageExists(it) }
-    return SpamFilterRun(toSpam, toInbox, toDelete, stale, keywordCounts)
+    return FilterRun(toFolders, toInbox, toDelete, stale, keywordCounts, ruleCounts)
 }
 
-/** Applies a run worked out by [planSpamFilterRun]. Run it off the main thread. */
-fun Context.applySpamFilterRun(run: SpamFilterRun) {
-    (run.stale + run.toInbox).forEach { spamDB.delete(it.id, it.isMMS) }
-    spamDB.insertAll(run.toSpam)
-    run.toSpam.forEach { markMessageRead(it.id, it.isMMS) }
+/** Applies a run worked out by [planFilterRun]. Run it off the main thread. */
+fun Context.applyFilterRun(run: FilterRun) {
+    (run.stale + run.toInbox).forEach { filteredDB.delete(it.id, it.isMMS) }
+    filteredDB.insertAll(run.toFolders)
+    run.toFolders.forEach { markMessageRead(it.id, it.isMMS) }
     run.toDelete.groupBy { it.threadId }.forEach { (threadId, spam) ->
         val keys = spam.map { it.id to it.isMMS }.toSet()
         getMessages(threadId, includeScheduledMessages = false, limit = Int.MAX_VALUE)
@@ -84,7 +92,7 @@ fun Context.applySpamFilterRun(run: SpamFilterRun) {
 
 // A failed query counts as "exists", so that a read error never removes an entry.
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
-private fun Context.messageExists(entry: SpamMessage): Boolean {
+private fun Context.messageExists(entry: FilteredMessage): Boolean {
     val uri = if (entry.isMMS) Mms.CONTENT_URI else Sms.CONTENT_URI
     return try {
         contentResolver.query(uri, arrayOf(Sms._ID), "${Sms._ID} = ?", arrayOf(entry.id.toString()), null)
@@ -95,14 +103,16 @@ private fun Context.messageExists(entry: SpamMessage): Boolean {
 }
 
 // Reading the received messages follows SpamScanner in Messages+ (https://github.com/arikw/messages).
-private fun Context.forEachReceivedMessage(callback: (message: SpamMessage, address: String, body: String) -> Unit) {
+private fun Context.forEachReceivedMessage(
+    callback: (message: FilteredMessage, address: String, body: String) -> Unit
+) {
     queryCursor(
         uri = Sms.CONTENT_URI,
         projection = arrayOf(Sms._ID, Sms.THREAD_ID, Sms.ADDRESS, Sms.BODY, Sms.DATE),
         selection = "${Sms.TYPE} = ${Sms.MESSAGE_TYPE_INBOX}",
         showErrors = true
     ) { cursor ->
-        val message = SpamMessage(
+        val message = FilteredMessage(
             id = cursor.getLongValue(Sms._ID),
             isMMS = false,
             threadId = cursor.getLongValue(Sms.THREAD_ID),
@@ -119,7 +129,12 @@ private fun Context.forEachReceivedMessage(callback: (message: SpamMessage, addr
         showErrors = true
     ) { cursor ->
         val id = cursor.getLongValue(Mms._ID)
-        val message = SpamMessage(id, isMMS = true, cursor.getLongValue(Mms.THREAD_ID), cursor.getIntValue(Mms.DATE))
+        val message = FilteredMessage(
+            id = id,
+            isMMS = true,
+            threadId = cursor.getLongValue(Mms.THREAD_ID),
+            date = cursor.getIntValue(Mms.DATE)
+        )
         callback(message, getMMSSender(id), mmsTexts[id].orEmpty())
     }
 }

@@ -5,27 +5,32 @@
     tools:ignore="AppCompatResource,AlwaysShowAction">
     <item
         android:id="@+id/show_spam"
+        android:orderInCategory="10"
         android:showAsAction="never"
         android:title="@string/spam"
         app:showAsAction="never" />
     <item
         android:id="@+id/show_recycle_bin"
+        android:orderInCategory="30"
         android:showAsAction="never"
         android:title="@string/show_the_recycle_bin"
         app:showAsAction="never" />
     <item
         android:id="@+id/show_archived"
+        android:orderInCategory="40"
         android:showAsAction="never"
         android:title="@string/show_archived_conversations"
         app:showAsAction="never" />
     <item
         android:id="@+id/settings"
+        android:orderInCategory="50"
         android:icon="@drawable/ic_settings_cog_vector"
         android:showAsAction="never"
         android:title="@string/settings"
         app:showAsAction="never" />
     <item
         android:id="@+id/about"
+        android:orderInCategory="60"
         android:icon="@drawable/ic_info_vector"
         android:showAsAction="never"
         android:title="@string/about"

@@ -2,7 +2,7 @@
 <!-- Strings added by this fork. They are kept apart from strings.xml so that upstream translation updates merge cleanly. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="spam">Spam</string>
-    <string name="no_spam">No spam messages</string>
+    <string name="no_messages_in_folder">No messages in this folder</string>
     <string name="spam_filter">Spam filter</string>
     <string name="run_spam_filter">Run filter on existing messages</string>
     <string name="spam_action">When a message matches</string>
@@ -14,7 +14,9 @@
     <string name="checking_messages">Checking the messages on the phone…</string>
     <string name="spam_filter_no_changes">No messages need to change.</string>
     <string name="apply">Apply</string>
-    <string name="spam_filter_run_summary">Apply the spam filter to the messages already on the phone?\n\nMove to Spam: %1$d\nReturn to the inbox: %2$d\nDelete: %3$d</string>
-    <string name="spam_keyword_counts">Messages matching each keyword:</string>
+    <string name="filter_run_summary">Apply Spam and the filter rules to the messages already on the phone?\n\nMove to a folder: %1$d\nReturn to the inbox: %2$d\nDelete: %3$d</string>
+    <string name="spam_keyword_counts">Messages matching each Spam keyword:</string>
+    <string name="filter_rule_counts">Messages each rule moves:</string>
+    <string name="filter_rule_count">%1$s (%2$s): %3$d</string>
     <string name="spam_keyword_count">\"%1$s\": %2$d</string>
 </resources>

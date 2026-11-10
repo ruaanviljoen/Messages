@@ -162,11 +162,12 @@ import org.fossify.messages.helpers.CAPTURE_VIDEO_INTENT
 import org.fossify.messages.helpers.FILE_SIZE_NONE
 import org.fossify.messages.helpers.IS_LAUNCHED_FROM_SHORTCUT
 import org.fossify.messages.helpers.IS_RECYCLE_BIN
-import org.fossify.messages.helpers.IS_SPAM
-import org.fossify.messages.helpers.getSpamDates
-import org.fossify.messages.helpers.restoreConversationFromSpam
-import org.fossify.messages.helpers.restoreFromSpam
-import org.fossify.messages.helpers.spamDB
+import org.fossify.messages.helpers.FOLDER_ID
+import org.fossify.messages.helpers.NO_FOLDER_ID
+import org.fossify.messages.helpers.getFilteredMessages
+import org.fossify.messages.helpers.restoreConversationFromFolder
+import org.fossify.messages.helpers.restoreToInbox
+import org.fossify.messages.helpers.filteredDB
 import org.fossify.messages.helpers.MESSAGES_LIMIT
 import org.fossify.messages.helpers.PICK_CONTACT_INTENT
 import org.fossify.messages.helpers.PICK_DOCUMENT_INTENT
@@ -192,6 +193,7 @@ import org.fossify.messages.messaging.sendMessageCompat
 import org.fossify.messages.models.Attachment
 import org.fossify.messages.models.AttachmentSelection
 import org.fossify.messages.models.Conversation
+import org.fossify.messages.models.FilteredMessage
 import org.fossify.messages.models.Events
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.MessageAttachment
@@ -225,8 +227,10 @@ class ThreadActivity : SimpleActivity() {
     private var allMessagesFetched = false
     private var isJumpingToMessage = false
     private var isRecycleBin = false
-    private var isSpam = false
-    private var spamDates = emptyMap<Pair<Long, Boolean>, Int>()
+    // A folder view (Spam or a rule's folder) shows only the conversation's messages in that folder.
+    private var folderId = NO_FOLDER_ID
+    private val isFolderView get() = folderId != NO_FOLDER_ID
+    private var filteredMessages = emptyMap<Pair<Long, Boolean>, FilteredMessage>()
     private var isLaunchedFromShortcut = false
 
     private var isScheduledMessage: Boolean = false
@@ -251,7 +255,7 @@ class ThreadActivity : SimpleActivity() {
         setupOptionsMenu()
         refreshMenuItems()
         setupEdgeToEdge(
-            // the Spam and recycle bin views have no message box, so the list itself keeps clear of the navigation bar
+            // folder and recycle bin views have no message box, so the list itself keeps clear of the navigation bar
             padBottomSystem = if (isReadOnlyView()) listOf(binding.threadMessagesList) else emptyList(),
             moveBottomSystem = if (isReadOnlyView()) listOf(binding.scrollToBottomFab) else emptyList(),
             padBottomImeAndSystem = listOf(
@@ -274,7 +278,7 @@ class ThreadActivity : SimpleActivity() {
             binding.threadToolbar.title = it
         }
         isRecycleBin = intent.getBooleanExtra(IS_RECYCLE_BIN, false)
-        isSpam = intent.getBooleanExtra(IS_SPAM, false)
+        folderId = intent.getLongExtra(FOLDER_ID, NO_FOLDER_ID)
         isLaunchedFromShortcut = intent.getBooleanExtra(IS_LAUNCHED_FROM_SHORTCUT, false)
 
         bus = EventBus.getDefault()
@@ -296,8 +300,8 @@ class ThreadActivity : SimpleActivity() {
 
         isActivityVisible = true
 
-        // the Spam view leaves the conversation's other messages and their notification alone
-        if (!isSpam) {
+        // a folder view leaves the conversation's other messages and their notification alone
+        if (!isFolderView) {
             notificationManager.cancel(threadId.hashCode())
         }
 
@@ -318,7 +322,7 @@ class ThreadActivity : SimpleActivity() {
                 }
             }
 
-            if (!isSpam) {
+            if (!isFolderView) {
                 markThreadMessagesRead(threadId)
             }
         }
@@ -371,22 +375,22 @@ class ThreadActivity : SimpleActivity() {
         val firstPhoneNumber = participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value
         val archiveAvailable = config.isArchiveAvailable
         binding.threadToolbar.menu.apply {
-            findItem(R.id.delete).isVisible = threadItems.isNotEmpty() && !isSpam
-            findItem(R.id.restore).isVisible = threadItems.isNotEmpty() && (isRecycleBin || isSpam)
+            findItem(R.id.delete).isVisible = threadItems.isNotEmpty() && !isFolderView
+            findItem(R.id.restore).isVisible = threadItems.isNotEmpty() && (isRecycleBin || isFolderView)
             findItem(R.id.archive).isVisible = threadItems.isNotEmpty() && conversation?.isArchived == false &&
-                !isRecycleBin && !isSpam && archiveAvailable
+                !isRecycleBin && !isFolderView && archiveAvailable
             findItem(R.id.unarchive).isVisible = threadItems.isNotEmpty() && conversation?.isArchived == true &&
-                !isRecycleBin && !isSpam && archiveAvailable
+                !isRecycleBin && !isFolderView && archiveAvailable
             findItem(R.id.rename_conversation).isVisible =
-                participants.size > 1 && conversation != null && !isRecycleBin && !isSpam
+                participants.size > 1 && conversation != null && !isRecycleBin && !isFolderView
             findItem(R.id.conversation_details).isVisible = conversation != null && !isRecycleBin
             findItem(R.id.block_number).title =
                 getString(org.fossify.commons.R.string.block_number)
             findItem(R.id.block_number).isVisible = !isRecycleBin
             findItem(R.id.dial_number).isVisible =
                 participants.size == 1 && !isSpecialNumber() && !isRecycleBin
-            findItem(R.id.manage_people).isVisible = !isSpecialNumber() && !isRecycleBin && !isSpam
-            findItem(R.id.mark_as_unread).isVisible = threadItems.isNotEmpty() && !isRecycleBin && !isSpam
+            findItem(R.id.manage_people).isVisible = !isSpecialNumber() && !isRecycleBin && !isFolderView
+            findItem(R.id.mark_as_unread).isVisible = threadItems.isNotEmpty() && !isRecycleBin && !isFolderView
 
             // allow saving number in cases when we don't have it stored yet
             findItem(R.id.add_number_to_contact).isVisible =
@@ -462,7 +466,7 @@ class ThreadActivity : SimpleActivity() {
                 emptyList()
             }
             clearExpiredScheduledMessages(threadId, messages)
-            spamDates = if (isRecycleBin) emptyMap() else getSpamDates(threadId)
+            filteredMessages = if (isRecycleBin) emptyMap() else getFilteredMessages(threadId)
             messages = messages
                 .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
                 .toSortedMessages()
@@ -510,7 +514,7 @@ class ThreadActivity : SimpleActivity() {
                     messages = messages.filterNotInByKey(recycledMessages) { it.getStableId() }
                 }
                 messages = messages.toSortedMessages()
-                spamDates = getSpamDates(threadId)
+                filteredMessages = getFilteredMessages(threadId)
             }
 
             val providerParticipantsChanged = reconcileProviderParticipants()
@@ -608,7 +612,7 @@ class ThreadActivity : SimpleActivity() {
                 recyclerView = binding.threadMessagesList,
                 itemClick = { handleItemClick(it) },
                 isRecycleBin = isRecycleBin,
-                isSpam = isSpam,
+                isFolderView = isFolderView,
                 deleteMessages = { messages, toRecycleBin, fromRecycleBin ->
                     deleteMessages(
                         messages,
@@ -751,8 +755,8 @@ class ThreadActivity : SimpleActivity() {
             } else {
                 if (toRecycleBin) {
                     moveMessageToRecycleBin(messageId)
-                } else if (fromRecycleBin && isSpam) {
-                    restoreFromSpam(message)
+                } else if (fromRecycleBin && isFolderView) {
+                    restoreToInbox(message)
                 } else if (fromRecycleBin) {
                     restoreMessageFromRecycleBin(messageId)
                 } else {
@@ -760,7 +764,7 @@ class ThreadActivity : SimpleActivity() {
                 }
             }
         }
-        forgetDeletedSpam(messagesToRemove, restored = fromRecycleBin)
+        forgetDeletedFiled(messagesToRemove, restored = fromRecycleBin)
         updateLastConversationMessage(threadId)
 
         // move all scheduled messages to a temporary thread when there are no real messages left
@@ -1064,7 +1068,7 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun maybeDisableShortCodeReply() {
-        if (isSpecialNumber() && !isRecycleBin && !isSpam) {
+        if (isSpecialNumber() && !isRecycleBin && !isFolderView) {
             currentFocus?.clearFocus()
             hideKeyboard()
             binding.messageHolder.threadTypeMessage.text?.clear()
@@ -1215,8 +1219,8 @@ class ThreadActivity : SimpleActivity() {
     private fun askConfirmRestoreAll() {
         ConfirmationDialog(this, getString(R.string.restore_confirmation)) {
             ensureBackgroundThread {
-                if (isSpam) {
-                    restoreConversationFromSpam(threadId)
+                if (isFolderView) {
+                    restoreConversationFromFolder(threadId, folderId)
                 } else {
                     restoreAllMessagesFromRecycleBinForConversation(threadId)
                 }
@@ -1362,8 +1366,11 @@ class ThreadActivity : SimpleActivity() {
             return emptyList()
         }
 
-        // The Spam folder shows a conversation's spam, the inbox the rest.
-        val messageSnapshot = messages.filter { (spamDates[it.id to it.isMMS] == it.date) == isSpam }.toSortedMessages()
+        // A folder view shows the conversation's messages in that folder, the inbox the ones in no folder.
+        val messageSnapshot = messages.filter { message ->
+            val entry = filteredMessages[message.id to message.isMMS]?.takeIf { it.date == message.date }
+            if (isFolderView) entry?.folderId == folderId else entry == null
+        }.toSortedMessages()
         val items = ArrayList<ThreadItem>()
 
         val subscriptionIdToSimId = HashMap<Int, String>()
@@ -1907,7 +1914,7 @@ class ThreadActivity : SimpleActivity() {
             )
         }
 
-        spamDates = getSpamDates(threadId)
+        filteredMessages = getFilteredMessages(threadId)
         messages = newMessages.apply {
             val scheduledMessages = messagesDB.getScheduledThreadMessages(threadId)
                 .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
@@ -2171,22 +2178,22 @@ class ThreadActivity : SimpleActivity() {
         animateAttachmentButton(rotation = -135f)
     }
 
-    // Messages deleted in the Spam view leave Spam; restored ones already have their entry updated.
-    private fun forgetDeletedSpam(messages: List<Message>, restored: Boolean) {
-        if (isSpam && !restored) {
-            messages.forEach { spamDB.delete(it.id, it.isMMS) }
+    // Messages deleted in a folder view leave the folder; restored ones already have their entry updated.
+    private fun forgetDeletedFiled(messages: List<Message>, restored: Boolean) {
+        if (isFolderView && !restored) {
+            messages.forEach { filteredDB.delete(it.id, it.isMMS) }
         }
     }
 
     // Read from the intent, because it is needed before the flags are set in onCreate.
     private fun isReadOnlyView() =
-        intent.getBooleanExtra(IS_RECYCLE_BIN, false) || intent.getBooleanExtra(IS_SPAM, false)
+        intent.getBooleanExtra(IS_RECYCLE_BIN, false) || intent.hasExtra(FOLDER_ID)
 
-    // The Spam view loads the whole conversation, because its spam can be older than the newest page of messages.
-    private fun messagesLimit() = if (isSpam) Int.MAX_VALUE else MESSAGES_LIMIT
+    // A folder view loads the whole conversation, because its messages can be older than the newest page.
+    private fun messagesLimit() = if (isFolderView) Int.MAX_VALUE else MESSAGES_LIMIT
 
     private fun maybeSetupRecycleBinView() {
-        if (isRecycleBin || isSpam) {
+        if (isRecycleBin || isFolderView) {
             binding.messageHolder.root.beGone()
         }
     }
