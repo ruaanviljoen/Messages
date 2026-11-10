@@ -25,6 +25,12 @@ Agreed design:
 
 Build order: rules engine and storage; folders in the main menu and folder views; rules screen; Spam filter section in Settings; then export and import of the whole setup.
 
+## Later: folder and notification details
+
+- Folders cannot be renamed or deleted yet. A folder stays in the main menu after its last rule is deleted.
+- A conversation has one notification. If an inbox message and a message for a notifying rule arrive in the same conversation, tapping the notification opens whichever arrived last.
+- Opening a folder does not mark its messages as read, so a conversation in the inbox can look unread because of a message in a folder.
+
 ## To investigate: deleting a conversation bypasses the recycle bin
 
 Reported from the phone: with the recycle bin turned on, deleting a conversation removed it completely and nothing appeared in the recycle bin.

@@ -29,6 +29,10 @@ class FilterRulesAdapter(
     itemClick: (Any) -> Unit
 ) : MyRecyclerViewAdapter(activity, recyclerView, itemClick), ItemTouchHelperContract {
     private val touchHelper = ItemTouchHelper(ItemMoveCallback(this)).apply { attachToRecyclerView(recyclerView) }
+    private var moved = false
+
+    /** Stops handling drags, before this adapter is replaced. */
+    fun detach() = touchHelper.attachToRecyclerView(null)
 
     override fun getActionMenuId() = 0
 
@@ -83,9 +87,17 @@ class FilterRulesAdapter(
     override fun onRowMoved(fromPosition: Int, toPosition: Int) {
         Collections.swap(rules, fromPosition, toPosition)
         notifyItemMoved(fromPosition, toPosition)
+        moved = true
     }
 
     override fun onRowSelected(myViewHolder: ViewHolder?) = Unit
 
-    override fun onRowClear(myViewHolder: ViewHolder?) = onReordered(rules)
+    // Saves the new order once a drag ends, if anything moved.
+    override fun onRowClear(myViewHolder: ViewHolder?) {
+        if (moved) {
+            moved = false
+            rules.indices.forEach { rules[it] = rules[it].copy(position = it) }
+            onReordered(rules.toList())
+        }
+    }
 }

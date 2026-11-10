@@ -109,32 +109,41 @@ class FilterRuleDialog(
     }
 
     private fun save(dialog: AlertDialog) {
+        val okButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
         val sender = binding.filterRuleSender.value.trim()
         val keywords = binding.filterRuleKeywords.value.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val newFolder = newFolderName
         when {
             folderId == null && newFolder == null -> activity.toast(R.string.filter_rule_needs_folder)
             sender.isEmpty() && keywords.isEmpty() -> activity.toast(R.string.filter_rule_needs_sender_or_keyword)
-            else -> ensureBackgroundThread {
-                val chosenFolder = folderId
-                    ?: newFolder?.let { activity.filterRulesDB.insertFolder(FilterFolder(name = it)) }
-                    ?: return@ensureBackgroundThread
-                val position = rule?.position
-                    ?: ((activity.filterRulesDB.getRules().maxOfOrNull { it.position } ?: -1) + 1)
-                activity.filterRulesDB.insertRule(
-                    FilterRule(
-                        id = rule?.id ?: 0,
-                        position = position,
-                        folderId = chosenFolder,
-                        sender = sender,
-                        keywords = keywords.joinToString("\n"),
-                        notify = binding.filterRuleNotify.isChecked
-                    )
+            else -> {
+                // a second tap must not save the rule twice
+                okButton.isEnabled = false
+                saveRule(dialog, sender, keywords, newFolder)
+            }
+        }
+    }
+
+    private fun saveRule(dialog: AlertDialog, sender: String, keywords: List<String>, newFolder: String?) {
+        ensureBackgroundThread {
+            val chosenFolder = folderId
+                ?: newFolder?.let { activity.filterRulesDB.insertFolder(FilterFolder(name = it)) }
+                ?: return@ensureBackgroundThread
+            val position = rule?.position
+                ?: ((activity.filterRulesDB.getRules().maxOfOrNull { it.position } ?: -1) + 1)
+            activity.filterRulesDB.insertRule(
+                FilterRule(
+                    id = rule?.id ?: 0,
+                    position = position,
+                    folderId = chosenFolder,
+                    sender = sender,
+                    keywords = keywords.joinToString("\n"),
+                    notify = binding.filterRuleNotify.isChecked
                 )
-                activity.runOnUiThread {
-                    dialog.dismiss()
-                    callback()
-                }
+            )
+            activity.runOnUiThread {
+                dialog.dismiss()
+                callback()
             }
         }
     }

@@ -71,6 +71,7 @@ class FilterRulesActivity : SimpleActivity() {
             val rules = ArrayList(filterRulesDB.getRules())
             val folderNames = getFolderNames()
             runOnUiThread {
+                (binding.manageBlockedKeywordsList.adapter as? FilterRulesAdapter)?.detach()
                 binding.manageBlockedKeywordsList.adapter = FilterRulesAdapter(
                     activity = this,
                     rules = rules,
@@ -93,13 +94,9 @@ class FilterRulesActivity : SimpleActivity() {
 
     // The order decides which rule wins, so a new order may move messages.
     private fun saveOrder(rules: List<FilterRule>) {
-        val ordered = rules.mapIndexed { index, rule -> rule.copy(position = index) }
         ensureBackgroundThread {
-            filterRulesDB.updateRules(ordered)
-            runOnUiThread {
-                loadRules()
-                offerFilterRun()
-            }
+            filterRulesDB.updateRules(rules)
+            runOnUiThread { offerFilterRun() }
         }
     }
 
