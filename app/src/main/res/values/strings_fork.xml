@@ -32,7 +32,7 @@
     <string name="filter_rule_action">Action</string>
     <string name="move_to">Move to %s</string>
     <string name="spam_filter_rule">Spam filter rule</string>
-    <string name="apply_to_saved_contacts">Apply to saved contacts</string>
+    <string name="apply_to_saved_contacts">Apply for saved contacts</string>
     <string name="delete_filter_rule">Delete this rule?</string>
     <string name="delete_filter_rule_and_folder">Delete this rule? The folder \"%s\" is empty and will be removed too.</string>
     <plurals name="delete_filter_rule_keep_folder">
