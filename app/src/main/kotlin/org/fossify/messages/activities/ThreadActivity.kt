@@ -125,6 +125,7 @@ import org.fossify.messages.extensions.dialNumber
 import org.fossify.messages.extensions.emptyMessagesRecycleBinForConversation
 import org.fossify.messages.extensions.filterNotInByKey
 import org.fossify.messages.extensions.getAddresses
+import org.fossify.messages.extensions.getContactFromAddress
 import org.fossify.messages.extensions.getDefaultKeyboardHeight
 import org.fossify.messages.extensions.getFileSizeFromUri
 import org.fossify.messages.extensions.getMessages
@@ -149,6 +150,7 @@ import org.fossify.messages.extensions.restoreMessageFromRecycleBin
 import org.fossify.messages.extensions.saveSmsDraft
 import org.fossify.messages.extensions.shouldUnarchive
 import org.fossify.messages.extensions.showWithAnimation
+import org.fossify.messages.extensions.startContactDetailsIntent
 import org.fossify.messages.extensions.subscriptionManagerCompat
 import org.fossify.messages.extensions.toArrayList
 import org.fossify.messages.extensions.toSortedMessages
@@ -243,6 +245,7 @@ class ThreadActivity : SimpleActivity() {
         setContentView(binding.root)
         setupOptionsMenu()
         refreshMenuItems()
+        binding.threadToolbar.setOnClickListener { openContactOrDetails() }
         setupEdgeToEdge(
             padBottomImeAndSystem = listOf(
                 binding.messageHolder.root,
@@ -1060,6 +1063,36 @@ class ThreadActivity : SimpleActivity() {
                 }
                 tooltipText = getString(org.fossify.commons.R.string.more_info)
             }
+        }
+    }
+
+    // Tapping the title opens the contact of a one-to-one conversation with a saved contact, and the conversation
+    // details otherwise, where each participant can be opened.
+    private fun openContactOrDetails() {
+        if (isRecycleBin) {
+            return
+        }
+
+        val address = participants.singleOrNull()?.phoneNumbers?.firstOrNull()?.normalizedNumber
+        if (address == null) {
+            launchConversationDetailsIfSaved()
+            return
+        }
+
+        getContactFromAddress(address) { contact ->
+            runOnUiThread {
+                if (contact != null) {
+                    startContactDetailsIntent(contact)
+                } else {
+                    launchConversationDetailsIfSaved()
+                }
+            }
+        }
+    }
+
+    private fun launchConversationDetailsIfSaved() {
+        if (conversation != null) {
+            launchConversationDetails(threadId)
         }
     }
 
