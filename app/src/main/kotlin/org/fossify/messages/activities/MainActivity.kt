@@ -60,6 +60,7 @@ import org.fossify.messages.extensions.clearExpiredScheduledMessages
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.conversationsDB
 import org.fossify.messages.extensions.deleteMessage
+import org.fossify.messages.extensions.deleteScheduledMessage
 import org.fossify.messages.extensions.getConversations
 import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.insertOrUpdateConversation
@@ -74,6 +75,7 @@ import org.fossify.messages.helpers.searchMessages
 import org.fossify.messages.helpers.spamDB
 import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.withoutStoredSpamOnly
+import org.fossify.messages.messaging.cancelScheduleSendPendingIntent
 import org.fossify.messages.models.Conversation
 import org.fossify.messages.models.Events
 import org.fossify.messages.models.Message
@@ -639,18 +641,30 @@ class MainActivity : SimpleActivity() {
     // Deletes messages selected in the search results, as the conversation screen does, and repeats the search.
     private fun deleteSearchedMessages(messages: List<Message>, toRecycleBin: Boolean) {
         messages.forEach {
-            if (toRecycleBin) {
-                messagesDB.insertOrUpdate(it)
-                moveMessageToRecycleBin(it.id)
-            } else {
-                deleteMessage(it.id, it.isMMS)
+            when {
+                it.isScheduled -> {
+                    deleteScheduledMessage(it.id)
+                    cancelScheduleSendPendingIntent(it.id)
+                }
+
+                toRecycleBin -> {
+                    messagesDB.insertOrUpdate(it)
+                    moveMessageToRecycleBin(it.id)
+                    spamDB.delete(it.id, it.isMMS)
+                }
+
+                else -> deleteMessage(it.id, it.isMMS)
             }
         }
         updateLastConversationMessage(messages.map { it.threadId }.distinct())
         // qualified, because this activity's event handlers have the same names
         org.fossify.messages.helpers.refreshMessages()
         org.fossify.messages.helpers.refreshConversations()
-        runOnUiThread { searchTextChanged(lastSearchedText, forceUpdate = true) }
+        runOnUiThread {
+            if (binding.mainMenu.isSearchOpen) {
+                searchTextChanged(lastSearchedText, forceUpdate = true)
+            }
+        }
     }
 
     private fun launchRecycleBin() {
