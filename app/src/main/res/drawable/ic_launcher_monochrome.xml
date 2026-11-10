@@ -1,4 +1,4 @@
-<!-- Placeholder icon for this fork: a funnel, to tell it apart from Fossify Messages. -->
+<!-- Placeholder icon for this fork: a round speech bubble with a filter funnel cut out of it. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="512" android:viewportHeight="512">
-    <path android:fillColor="#ffffff" android:pathData="M160,170H352L280,262V318L232,342V262Z" />
+    <path android:fillColor="#ffffff" android:fillType="evenOdd" android:pathData="M214.0,349.8A112,112 0 1,0 159.0,302.0Q156,334 146,366ZM192,192H320L274,250V292L238,310V250Z" />
 </vector>
