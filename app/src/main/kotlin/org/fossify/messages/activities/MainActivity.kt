@@ -103,7 +103,10 @@ class MainActivity : SimpleActivity() {
 
     // The "Unread" and "Read" chips under the search bar narrow the conversation list.
     private var lastConversations = ArrayList<Conversation>()
-    private val readFilter by lazy { ReadFilterChips(binding.readFilter) { setupConversations(lastConversations) } }
+    private var lastConversationsCached = false
+    private val readFilter by lazy {
+        ReadFilterChips(binding.readFilter) { setupConversations(lastConversations, lastConversationsCached) }
+    }
     private var bus: EventBus? = null
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -477,6 +480,7 @@ class MainActivity : SimpleActivity() {
         cached: Boolean = false,
     ) {
         lastConversations = conversations
+        lastConversationsCached = cached
         val sortedConversations = readFilter.apply(conversations)
             .sortedWith(
                 compareByDescending<Conversation> {
@@ -490,7 +494,7 @@ class MainActivity : SimpleActivity() {
             showOrHideProgress(conversations.isEmpty())
         } else {
             showOrHideProgress(false)
-            showOrHidePlaceholder(conversations.isEmpty())
+            showOrHidePlaceholder(sortedConversations.isEmpty())
         }
 
         try {
@@ -517,10 +521,13 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun showOrHidePlaceholder(show: Boolean) {
+        // an empty list with conversations loaded means the read filter hides them all
+        val filteredOut = show && lastConversations.isNotEmpty()
         binding.conversationsFastscroller.beGoneIf(show)
         binding.noConversationsPlaceholder.beVisibleIf(show)
-        binding.noConversationsPlaceholder.text = getString(R.string.no_conversations_found)
-        binding.noConversationsPlaceholder2.beVisibleIf(show)
+        binding.noConversationsPlaceholder.text =
+            getString(if (filteredOut) R.string.no_filtered_conversations else R.string.no_conversations_found)
+        binding.noConversationsPlaceholder2.beVisibleIf(show && !filteredOut)
     }
 
     private fun fadeOutSearch() {

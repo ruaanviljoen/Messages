@@ -41,6 +41,7 @@
     </plurals>
     <string name="filter_unread">Unread</string>
     <string name="filter_read">Read</string>
+    <string name="no_filtered_conversations">No conversations match this filter</string>
     <string name="open_folder">Open %s</string>
     <string name="open_spam">Open Spam</string>
     <string name="open_recycle_bin">Open recycle bin</string>

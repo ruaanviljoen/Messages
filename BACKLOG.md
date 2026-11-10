@@ -38,7 +38,7 @@ Build order: rules engine and storage; folders in the main menu and folder views
 
 - Folders cannot be renamed yet. (Deleting is handled: a folder with no rules and no messages is removed automatically.)
 - A conversation has one notification. If an inbox message and a message for a notifying rule arrive in the same conversation, tapping the notification opens whichever arrived last.
-- Opening a folder does not mark its messages as read, so a conversation in the inbox can look unread because of a message in a folder.
+- Opening a folder does not mark its messages as read, so a conversation in the inbox can look unread because of a message in a folder. The same conversation also shows under the "Unread" filter.
 
 ## To investigate: deleting a conversation bypasses the recycle bin
 
