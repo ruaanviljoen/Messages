@@ -4,6 +4,7 @@ import androidx.appcompat.app.AlertDialog
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
+import org.fossify.commons.extensions.beGoneIf
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.showKeyboard
@@ -50,8 +51,10 @@ class FilterRuleDialog(
         binding.apply {
             filterRuleSender.setText(rule?.sender)
             filterRuleKeywords.setText(rule?.keywords)
-            filterRuleApplyToContacts.isChecked = rule?.applyToContacts == true
+            filterRuleApplyToContacts.isChecked = rule?.applyToContacts ?: true
             filterRuleNotify.isChecked = rule?.notify == true
+            // Spam never notifies
+            filterRuleNotify.beGoneIf(isSpam)
             filterRuleAction.setOnClickListener { chooseAction() }
         }
         showAction()
@@ -180,7 +183,7 @@ class FilterRuleDialog(
                     folderId = chosenFolder,
                     sender = sender,
                     keywords = keywords.joinToString("\n"),
-                    notify = binding.filterRuleNotify.isChecked,
+                    notify = !isSpam && binding.filterRuleNotify.isChecked,
                     action = if (deletes) SPAM_ACTION_DELETE else SPAM_ACTION_MOVE,
                     isSpam = isSpam,
                     applyToContacts = binding.filterRuleApplyToContacts.isChecked

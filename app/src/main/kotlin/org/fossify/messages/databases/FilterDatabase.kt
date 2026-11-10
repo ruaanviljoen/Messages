@@ -74,7 +74,8 @@ abstract class FilterDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `action` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `is_spam` INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `apply_to_contacts` INTEGER NOT NULL DEFAULT 0")
+                // existing rules applied to everyone, so they keep applying to saved contacts
+                db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `apply_to_contacts` INTEGER NOT NULL DEFAULT 1")
             }
         }
     }

@@ -37,10 +37,13 @@ fun ruleMatches(sender: String, keywords: List<String>, address: String, body: S
     return senderMatches && keywordsMatch
 }
 
+private val spamRuleLock = Any()
+
 /**
- * The Spam rule, created from the Spam settings the first time it is needed. Run it off the main thread.
+ * The Spam rule, created from the Spam settings the first time it is needed. Locked, so that messages arriving at the
+ * same moment cannot create it twice. Run it off the main thread.
  */
-fun Context.getSpamRule(): FilterRule {
+fun Context.getSpamRule(): FilterRule = synchronized(spamRuleLock) {
     filterRulesDB.getSpamRule()?.let { return it }
 
     val rule = FilterRule(
@@ -74,7 +77,9 @@ class MessageFilter(private val context: Context) {
         rules.forEach { rule ->
             if (applies(rule, address, body)) {
                 val keywords = findSpamKeywords(body, ruleKeywords[rule.id].orEmpty())
-                return FilterResult(rule.folderId, rule, keywords, deletes = rule.deletes(), notifies = rule.notify)
+                // a deleted message is never notified about
+                val notifies = rule.notify && !rule.deletes()
+                return FilterResult(rule.folderId, rule, keywords, deletes = rule.deletes(), notifies = notifies)
             }
         }
         return null
