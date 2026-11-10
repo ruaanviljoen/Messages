@@ -69,10 +69,11 @@ import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
 import org.fossify.messages.helpers.deleteMessagesFromSearch
-import org.fossify.messages.helpers.filterRulesDB
 import org.fossify.messages.helpers.filteredDB
 import org.fossify.messages.helpers.getFolderNames
+import org.fossify.messages.helpers.isFolderItem
 import org.fossify.messages.helpers.searchMessages
+import org.fossify.messages.helpers.updateFolderMenuItems
 import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.withoutStoredSpamOnly
 import org.fossify.messages.models.Conversation
@@ -83,10 +84,6 @@ import org.fossify.messages.models.SearchResult
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
-
-// Folders of the filter rules in the main menu: their group, and their position after Spam.
-private const val FOLDERS_MENU_GROUP = 1
-private const val FOLDERS_MENU_ORDER = 40
 
 class MainActivity : SimpleActivity() {
     override var isSearchBarEnabled = true
@@ -219,7 +216,7 @@ class MainActivity : SimpleActivity() {
         }
 
         binding.mainMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
-            if (menuItem.groupId == FOLDERS_MENU_GROUP) {
+            if (menuItem.isFolderItem()) {
                 hideKeyboard()
                 startActivity(menuItem.intent)
                 return@setOnMenuItemClickListener true
@@ -242,25 +239,7 @@ class MainActivity : SimpleActivity() {
             findItem(R.id.show_recycle_bin).isVisible = config.useRecycleBin
             findItem(R.id.show_archived).isVisible = config.isArchiveAvailable
         }
-        updateFolderMenuItems()
-    }
-
-    // The folders of the filter rules appear in the menu after Spam; folders with no rules and no messages are removed.
-    private fun updateFolderMenuItems() {
-        ensureBackgroundThread {
-            filterRulesDB.deleteUnusedFolders()
-            val folders = filterRulesDB.getFolders()
-            runOnUiThread {
-                binding.mainMenu.requireToolbar().menu.apply {
-                    removeGroup(FOLDERS_MENU_GROUP)
-                    folders.forEach {
-                        val title = getString(R.string.open_folder, it.name)
-                        add(FOLDERS_MENU_GROUP, it.id.toInt(), FOLDERS_MENU_ORDER, title).intent =
-                            FolderActivity.intent(this@MainActivity, it.id, it.name)
-                    }
-                }
-            }
-        }
+        updateFolderMenuItems(binding.mainMenu.requireToolbar().menu)
     }
 
     private fun openFolder(folderId: Long, name: String) {
