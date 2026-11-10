@@ -10,7 +10,6 @@ import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
 import org.fossify.messages.extensions.getMMSSender
 import org.fossify.messages.extensions.getMessages
-import org.fossify.messages.extensions.markMessageRead
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.models.FilteredMessage
 
@@ -79,8 +78,7 @@ fun Context.planFilterRun(): FilterRun {
 fun Context.applyFilterRun(run: FilterRun) {
     (run.stale + run.toInbox).forEach { filteredDB.delete(it.id, it.isMMS) }
     filteredDB.insertAll(run.toFolders)
-    // Existing messages moved to a folder are marked as read, even for rules that notify on new messages.
-    run.toFolders.forEach { markMessageRead(it.id, it.isMMS) }
+    // Moving existing messages leaves their read state as it is.
     run.toDelete.groupBy { it.threadId }.forEach { (threadId, spam) ->
         val keys = spam.map { it.id to it.isMMS }.toSet()
         getMessages(threadId, includeScheduledMessages = false, limit = Int.MAX_VALUE)
