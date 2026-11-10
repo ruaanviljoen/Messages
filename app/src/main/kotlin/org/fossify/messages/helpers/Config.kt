@@ -167,4 +167,8 @@ class Config(context: Context) : BaseConfig(context) {
     var spamExemptNumbers: Set<String>
         get() = prefs.getStringSet(SPAM_EXEMPT_NUMBERS, HashSet<String>())!!
         set(spamExemptNumbers) = prefs.edit().putStringSet(SPAM_EXEMPT_NUMBERS, spamExemptNumbers).apply()
+
+    var spamArchivedThreads: Set<String>
+        get() = prefs.getStringSet(SPAM_ARCHIVED_THREADS, HashSet<String>())!!
+        set(spamArchivedThreads) = prefs.edit().putStringSet(SPAM_ARCHIVED_THREADS, spamArchivedThreads).apply()
 }

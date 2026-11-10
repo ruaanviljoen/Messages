@@ -37,7 +37,8 @@ class FilterRuleDialog(
     private val isSpam = rule?.isSpam == true
     private var folders = emptyList<FilterFolder>()
     private var folderId = rule?.folderId
-    private var archives = rule?.archives() == true
+    // where the phone cannot archive, the rule moves to Spam and is shown and saved that way
+    private var archives = rule?.archives() == true && activity.config.isArchiveAvailable
 
     // A folder named in this dialog is created only when the rule is saved.
     private var newFolderName: String? = null

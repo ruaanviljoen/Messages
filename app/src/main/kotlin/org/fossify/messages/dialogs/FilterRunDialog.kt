@@ -55,7 +55,8 @@ class FilterRunDialog(
         listOf(
             R.string.filter_run_move to run.toFolders.size,
             R.string.filter_run_inbox to run.toInbox.size,
-            R.string.filter_run_archive to run.toArchive.distinctBy { it.threadId }.size
+            R.string.filter_run_archive to run.toArchive.distinctBy { it.threadId }.size,
+            R.string.filter_run_unarchive to run.toUnarchive.size
         ).filter { it.second > 0 }.forEach { lines += getString(it.first, it.second) }
 
         // the rules in the order they run, Spam first, each named after its folder

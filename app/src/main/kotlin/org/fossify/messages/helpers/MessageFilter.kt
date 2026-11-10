@@ -6,10 +6,7 @@ import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.messages.R
 import org.fossify.messages.databases.FilterDatabase
 import org.fossify.messages.extensions.config
-import org.fossify.messages.extensions.getConversations
-import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.markMessageRead
-import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.models.FilterRule
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.SPAM_FOLDER_ID
@@ -111,11 +108,8 @@ fun Context.fileReceivedMessage(message: Message, result: FilterResult) {
     if (!result.notifies) {
         markMessageRead(message.id, message.isMMS)
     }
-    if (result.archives) {
-        // the archived conversation shows the new message as its snippet
-        getConversations(message.threadId).firstOrNull()?.let { insertOrUpdateConversation(it) }
-        updateConversationArchivedStatus(message.threadId, true)
-    } else {
+    // if the conversation cannot be archived, the message goes to the rule's folder, which is Spam
+    if (!result.archives || !archiveSpamConversation(message.threadId)) {
         filteredDB.insert(message.toFilteredMessage(folderId = result.folderId))
     }
     refreshMessages()
