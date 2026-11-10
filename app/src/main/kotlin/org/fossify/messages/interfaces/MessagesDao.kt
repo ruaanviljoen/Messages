@@ -80,6 +80,9 @@ interface MessagesDao {
     @Query("DELETE FROM recycle_bin_messages WHERE id = :id")
     fun deleteFromRecycleBin(id: Long)
 
+    @Query("DELETE FROM recycle_bin_messages")
+    fun deleteAllFromRecycleBin()
+
     @Transaction
     fun deleteThreadMessages(threadId: Long) {
         deleteThreadMessagesFromRecycleBin(threadId)

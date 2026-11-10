@@ -15,7 +15,7 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 Agreed changes to the design below:
 
 - Spam is stored as a rule like the others, pinned first: it always runs first, cannot be moved or deleted, and its folder is Spam. Existing Spam keywords and settings become this rule.
-- One dialog edits every rule, with the same fields: Action ("Move to" a folder, or "Delete", which only the Spam rule offers for now), sender, keywords, "Apply for saved contacts" (per rule, on by default; the Spam rule keeps the old Spam setting) and "Show notifications" (not shown for Spam, which never notifies).
+- One dialog edits every rule, with the same fields: Action ("Move to" a folder, or "Archive", which only the Spam rule offers for now), sender, keywords, "Apply for saved contacts" (per rule, on by default; the Spam rule keeps the old Spam setting) and "Show notifications" (not shown for Spam, which never notifies).
 - Settings > Filters: Spam filter rule, Filter rules, Numbers never treated as spam (Spam only), Run filters on existing messages. The separate keyword list screen is no longer used.
 - Deleting the last rule for a folder also deletes the folder when it is empty, and says so in the confirmation. A folder with no rules and no messages is removed automatically.
 
@@ -40,13 +40,11 @@ Build order: rules engine and storage; folders in the main menu and folder views
 - A conversation has one notification. If an inbox message and a message for a notifying rule arrive in the same conversation, tapping the notification opens whichever arrived last.
 - Opening a folder does not mark its messages as read, so a conversation in the inbox can look unread because of a message in a folder. The same conversation also shows under the "Unread" filter.
 
-## To investigate: deleting a conversation bypasses the recycle bin
+## Decided: no recycle bin
 
-Reported from the phone: with the recycle bin turned on, deleting a conversation removed it completely and nothing appeared in the recycle bin.
+Fossify deprecated its recycle bin in 1.7.0 (#290), and it never covered deleting whole conversations. This fork turns it off: deleting is always permanent, and deleting conversations asks "Delete N conversations permanently?" with an "Archive instead" button. Messages left in the bin by earlier test builds are returned to their conversations on the next start. Fossify's recycle bin code stays in place, switched off, so that merges stay simple; remove our hook points when Fossify removes the feature.
 
-First look at the code (not yet confirmed on the phone): deleting whole conversations from the inbox list calls `deleteConversation()`, which deletes the conversation's messages straight from the phone's message store and does not check the recycle bin setting. Only messages deleted inside a conversation go to the recycle bin. If that is right, this is how Fossify itself behaves, not something this fork changed, and the deleted messages cannot be recovered in the app.
-
-To decide: whether deleting a conversation should move its messages to the recycle bin when it is on, and whether to raise it with Fossify.
+The Spam rule's second action is now "Archive" instead of "Delete": a matching message stays in its conversation, and the conversation is archived. A later message that no filter takes brings the conversation back to the inbox. Rules that deleted before become rules that archive.
 
 ## Export and import the whole spam filter setup
 

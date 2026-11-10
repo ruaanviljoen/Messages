@@ -15,7 +15,8 @@ import org.fossify.commons.models.RadioItem
 import org.fossify.messages.R
 import org.fossify.messages.databinding.DialogAddBlockedKeywordBinding
 import org.fossify.messages.databinding.DialogFilterRuleBinding
-import org.fossify.messages.helpers.SPAM_ACTION_DELETE
+import org.fossify.messages.extensions.config
+import org.fossify.messages.helpers.SPAM_ACTION_ARCHIVE
 import org.fossify.messages.helpers.SPAM_ACTION_MOVE
 import org.fossify.messages.helpers.addContactPicker
 import org.fossify.messages.helpers.filterRulesDB
@@ -25,7 +26,7 @@ import org.fossify.messages.models.SPAM_FOLDER_ID
 
 /**
  * Adds a filter rule, or edits or deletes [rule]. The Spam rule is edited here too: its action is "Move to Spam" or
- * "Delete", and it cannot be deleted. [callback] runs after a change is saved.
+ * "Archive", and it cannot be deleted. [callback] runs after a change is saved.
  */
 class FilterRuleDialog(
     private val activity: BaseSimpleActivity,
@@ -36,7 +37,7 @@ class FilterRuleDialog(
     private val isSpam = rule?.isSpam == true
     private var folders = emptyList<FilterFolder>()
     private var folderId = rule?.folderId
-    private var deletes = rule?.deletes() == true
+    private var archives = rule?.archives() == true
 
     // A folder named in this dialog is created only when the rule is saved.
     private var newFolderName: String? = null
@@ -88,33 +89,32 @@ class FilterRuleDialog(
         val folder = newFolderName ?: folderName(folderId)
         binding.filterRuleAction.setText(
             when {
-                deletes -> activity.getString(org.fossify.commons.R.string.delete)
+                archives -> activity.getString(R.string.archive)
                 folder != null -> activity.getString(R.string.move_to, folder)
                 else -> ""
             }
         )
     }
 
-    // The Spam rule moves to Spam or deletes; other rules move to one of the folders or a new one.
+    // The Spam rule moves to Spam or, where the phone can, archives. Other rules move to a folder or a new one.
     private fun chooseAction() {
         val items = if (isSpam) {
             val spam = activity.getString(R.string.spam)
-            arrayListOf(
-                RadioItem(SPAM_FOLDER_ID.toInt(), activity.getString(R.string.move_to, spam)),
-                RadioItem(DELETE, activity.getString(org.fossify.commons.R.string.delete))
-            )
+            arrayListOf(RadioItem(SPAM_FOLDER_ID.toInt(), activity.getString(R.string.move_to, spam))).apply {
+                if (activity.config.isArchiveAvailable) add(RadioItem(ARCHIVE, activity.getString(R.string.archive)))
+            }
         } else {
             folders.mapTo(ArrayList()) { RadioItem(it.id.toInt(), activity.getString(R.string.move_to, it.name)) }
                 .apply { add(RadioItem(NEW_FOLDER, activity.getString(R.string.new_folder))) }
         }
-        val checked = if (deletes) DELETE else folderId?.toInt() ?: NO_CHOICE
+        val checked = if (archives) ARCHIVE else folderId?.toInt() ?: NO_CHOICE
         RadioGroupDialog(activity, items, checked, R.string.filter_rule_action) {
             when (it) {
                 NEW_FOLDER -> nameNewFolder()
-                DELETE -> deletes = true
+                ARCHIVE -> archives = true
                 else -> {
                     folderId = (it as Int).toLong()
-                    deletes = false
+                    archives = false
                     newFolderName = null
                 }
             }
@@ -186,7 +186,7 @@ class FilterRuleDialog(
                     sender = sender,
                     keywords = keywords.joinToString("\n"),
                     notify = !isSpam && binding.filterRuleNotify.isChecked,
-                    action = if (deletes) SPAM_ACTION_DELETE else SPAM_ACTION_MOVE,
+                    action = if (archives) SPAM_ACTION_ARCHIVE else SPAM_ACTION_MOVE,
                     isSpam = isSpam,
                     applyToContacts = binding.filterRuleApplyToContacts.isChecked
                 )
@@ -232,6 +232,6 @@ class FilterRuleDialog(
     companion object {
         private const val NO_CHOICE = -1
         private const val NEW_FOLDER = -2
-        private const val DELETE = -3
+        private const val ARCHIVE = -3
     }
 }

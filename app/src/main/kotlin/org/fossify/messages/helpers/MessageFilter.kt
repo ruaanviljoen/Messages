@@ -6,7 +6,10 @@ import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.messages.R
 import org.fossify.messages.databases.FilterDatabase
 import org.fossify.messages.extensions.config
+import org.fossify.messages.extensions.getConversations
+import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.markMessageRead
+import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.models.FilterRule
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.SPAM_FOLDER_ID
@@ -14,7 +17,8 @@ import org.fossify.messages.models.SPAM_FOLDER_ID
 val Context.filterRulesDB get() = FilterDatabase.getInstance(this).FilterRulesDao()
 
 /**
- * What the filters do with a message: move it to [folderId] ([SPAM_FOLDER_ID] for Spam), or delete it ([deletes]).
+ * What the filters do with a message: move it to [folderId] ([SPAM_FOLDER_ID] for Spam), or leave it in its
+ * conversation and archive the conversation ([archives]).
  * [rule] is the rule that matched and [keywords] the keywords of it that the message contains. [notifies] tells whether
  * a notification is still shown.
  */
@@ -22,7 +26,7 @@ data class FilterResult(
     val folderId: Long,
     val rule: FilterRule,
     val keywords: List<String>,
-    val deletes: Boolean = false,
+    val archives: Boolean = false,
     val notifies: Boolean = false
 )
 
@@ -70,6 +74,9 @@ class MessageFilter(private val context: Context) {
     }
     private val ruleKeywords = rules.associate { it.id to it.keywordList() }
     private val spamExemptNumbers = context.config.spamExemptNumbers.map { it.toSenderKey() }.toSet()
+
+    // where the phone cannot archive, the Spam rule moves to Spam instead
+    private val archiveAvailable = context.config.isArchiveAvailable
     private val savedContacts = HashMap<String, Boolean>()
 
     /** What to do with a message from [address], or null to leave it in the inbox. */
@@ -77,9 +84,10 @@ class MessageFilter(private val context: Context) {
         rules.forEach { rule ->
             if (applies(rule, address, body)) {
                 val keywords = findSpamKeywords(body, ruleKeywords[rule.id].orEmpty())
-                // a deleted message is never notified about
-                val notifies = rule.notify && !rule.deletes()
-                return FilterResult(rule.folderId, rule, keywords, deletes = rule.deletes(), notifies = notifies)
+                val archives = rule.archives() && archiveAvailable
+                // an archived message is never notified about
+                val notifies = rule.notify && !archives
+                return FilterResult(rule.folderId, rule, keywords, archives = archives, notifies = notifies)
             }
         }
         return null
@@ -96,16 +104,18 @@ class MessageFilter(private val context: Context) {
 }
 
 /**
- * Files a received message the filters matched: deletes it, or moves it to its folder and, unless the rule notifies,
- * marks it as read. The caller shows a notification only if [FilterResult.notifies].
+ * Files a received message the filters matched: moves it to its folder, or archives its conversation. Unless the rule
+ * notifies, the message is marked as read. The caller shows a notification only if [FilterResult.notifies].
  */
 fun Context.fileReceivedMessage(message: Message, result: FilterResult) {
-    if (result.deletes) {
-        deleteFilteredMessage(message)
+    if (!result.notifies) {
+        markMessageRead(message.id, message.isMMS)
+    }
+    if (result.archives) {
+        // the archived conversation shows the new message as its snippet
+        getConversations(message.threadId).firstOrNull()?.let { insertOrUpdateConversation(it) }
+        updateConversationArchivedStatus(message.threadId, true)
     } else {
-        if (!result.notifies) {
-            markMessageRead(message.id, message.isMMS)
-        }
         filteredDB.insert(message.toFilteredMessage(folderId = result.folderId))
     }
     refreshMessages()

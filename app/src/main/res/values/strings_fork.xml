@@ -25,7 +25,7 @@
     <string name="filter_run_question">Apply the filters to the messages already on the phone?</string>
     <string name="filter_run_move">Move to a folder: %d</string>
     <string name="filter_run_inbox">Return to the inbox: %d</string>
-    <string name="filter_run_delete">Delete: %d</string>
+    <string name="filter_run_archive">Archive conversations: %d</string>
     <string name="filter_run_matches">Messages matching filters:</string>
     <string name="filter_run_filter">%1$s (%2$d)</string>
     <string name="filter_run_keyword">\"%1$s\": %2$d</string>

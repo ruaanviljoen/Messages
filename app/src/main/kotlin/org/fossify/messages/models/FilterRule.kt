@@ -3,14 +3,14 @@ package org.fossify.messages.models
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import org.fossify.messages.helpers.SPAM_ACTION_DELETE
+import org.fossify.messages.helpers.SPAM_ACTION_ARCHIVE
 import org.fossify.messages.helpers.SPAM_ACTION_MOVE
 
 /**
  * A filter rule: messages from [sender] that contain any of the [keywords] (one per line) are moved to the folder
- * [folderId], or deleted when [action] says so, which only the Spam rule allows. Either part may be empty, but not
- * both. Messages from saved contacts are left alone unless [applyToContacts], which is on by default; the Spam rule
- * starts with it off, so that saved contacts are not treated as spam.
+ * [folderId]. The Spam rule can archive their conversations instead, when [action] says so. Either part may be empty,
+ * but not both. Messages from saved contacts are left alone unless [applyToContacts], which is on by default; the
+ * Spam rule starts with it off, so that saved contacts are not treated as spam.
  *
  * The Spam rule ([isSpam]) is pinned: it runs first, its folder is Spam, and it cannot be moved or deleted. The other
  * rules run after it in [position] order, and the first rule that matches wins.
@@ -29,8 +29,8 @@ data class FilterRule(
 ) {
     fun keywordList() = keywords.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-    /** Whether matching messages are deleted instead of moved. Only the Spam rule may delete, for now. */
-    fun deletes() = isSpam && action == SPAM_ACTION_DELETE
+    /** Whether the conversations of matching messages are archived instead. Only the Spam rule may do this, for now. */
+    fun archives() = isSpam && action == SPAM_ACTION_ARCHIVE
 
     /** A short description such as: FNB, "purchase", "payment". */
     fun describe() = (listOf(sender.trim()).filter { it.isNotEmpty() } + keywordList().map { "\"$it\"" })

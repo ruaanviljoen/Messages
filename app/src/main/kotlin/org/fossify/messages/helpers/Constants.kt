@@ -109,7 +109,8 @@ const val SPAM_ACTION = "spam_action"
 const val FILTER_SAVED_CONTACTS = "filter_saved_contacts"
 const val SPAM_EXEMPT_NUMBERS = "spam_exempt_numbers"
 const val SPAM_ACTION_MOVE = 0
-const val SPAM_ACTION_DELETE = 1
+// earlier versions stored 1 for deleting, so a Spam rule that deleted now archives
+const val SPAM_ACTION_ARCHIVE = 1
 val DEFAULT_SPAM_KEYWORDS = setOf("opt out", "optout", "opt-out", "*135*181#", "opt-out.co")
 
 fun refreshMessages() {

@@ -1238,7 +1238,7 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun askConfirmDelete() {
-        val canArchive = config.isArchiveAvailable && conversation?.isArchived == false && !isRecycleBin
+        val canArchive = config.isArchiveAvailable && conversation?.isArchived == false
         val archive = ::archiveConversation.takeIf { canArchive }
         DeleteConversationsDialog(this, getString(R.string.delete_conversation_permanently), archive) {
             ensureBackgroundThread {

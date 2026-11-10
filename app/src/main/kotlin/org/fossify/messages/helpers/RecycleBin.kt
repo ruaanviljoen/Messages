@@ -8,8 +8,9 @@ import org.fossify.messages.extensions.messagesDB
 
 /** Returns any messages left in the recycle bin by an earlier version to their conversations. */
 fun Context.restoreRecycledMessages() = ensureBackgroundThread {
+    // getArchivedCount counts the recycle bin; clearing it also drops entries whose message is gone
     if (messagesDB.getArchivedCount() > 0) {
-        messagesDB.getAllRecycleBinMessages().forEach { messagesDB.deleteFromRecycleBin(it.id) }
+        messagesDB.deleteAllFromRecycleBin()
         refreshConversations()
     }
 }

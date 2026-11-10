@@ -8,8 +8,9 @@ import org.fossify.commons.extensions.getIntValue
 import org.fossify.commons.extensions.getLongValue
 import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
+import org.fossify.messages.extensions.conversationsDB
 import org.fossify.messages.extensions.getMMSSender
-import org.fossify.messages.extensions.getMessages
+import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.models.FilteredMessage
 
 internal const val MILLIS_PER_SECOND = 1000
@@ -28,30 +29,31 @@ class FilterMatches {
 
 /**
  * What running the filters over the received messages on the phone would change: messages moving to a folder (Spam or
- * a rule's folder), back to the inbox, or deleted. Of the messages that move or are deleted, [ruleMatches] counts
- * what each rule takes, by rule id; the Spam rule is one of them.
+ * a rule's folder) or back to the inbox, and messages whose conversations are archived. Of the messages that change,
+ * [ruleMatches] counts what each rule takes, by rule id; the Spam rule is one of them.
  */
 data class FilterRun(
     val toFolders: List<FilteredMessage>,
     val toInbox: List<FilteredMessage>,
-    val toDelete: List<FilteredMessage>,
+    val toArchive: List<FilteredMessage>,
     val stale: List<FilteredMessage>,
     val ruleMatches: Map<Long, FilterMatches>
 ) {
-    val hasChanges get() = toFolders.isNotEmpty() || toInbox.isNotEmpty() || toDelete.isNotEmpty()
+    val hasChanges get() = toFolders.isNotEmpty() || toInbox.isNotEmpty() || toArchive.isNotEmpty()
 }
 
 /**
  * Works out what the filters would change, without changing anything. Messages the user restored to the inbox are
- * left alone. Entries whose message is gone, or whose id now belongs to
- * another message, are [FilterRun.stale]. Slow, so run it off the main thread.
+ * left alone. Entries whose message is gone, or whose id now belongs to another message, are [FilterRun.stale]. Slow,
+ * so run it off the main thread.
  */
 fun Context.planFilterRun(): FilterRun {
     val filter = MessageFilter(this)
     val entries = filteredDB.getAll().associateByTo(HashMap()) { it.id to it.isMMS }
     val toFolders = ArrayList<FilteredMessage>()
     val toInbox = ArrayList<FilteredMessage>()
-    val toDelete = ArrayList<FilteredMessage>()
+    val toArchive = ArrayList<FilteredMessage>()
+    val archived = conversationsDB.getAllArchived().mapTo(HashSet()) { it.threadId }
     val stale = ArrayList<FilteredMessage>()
     val ruleMatches = HashMap<Long, FilterMatches>()
 
@@ -69,7 +71,13 @@ fun Context.planFilterRun(): FilterRun {
         val result = filter.filter(address, body)
         when {
             result == null -> if (entry != null) toInbox += entry
-            result.deletes -> toDelete += message
+            // a message to archive leaves its folder, and changes nothing if both are done already
+            result.archives -> if (entry != null || message.threadId !in archived) {
+                toArchive += message
+            } else {
+                return@forEachReceivedMessage
+            }
+
             entry?.folderId != result.folderId -> toFolders += message.copy(folderId = result.folderId)
             else -> return@forEachReceivedMessage // already in its folder
         }
@@ -80,20 +88,15 @@ fun Context.planFilterRun(): FilterRun {
 
     // An entry not seen above is stale only if its message is really gone, not merely missed by a failed read.
     stale += entries.values.filterNot { messageExists(it) }
-    return FilterRun(toFolders, toInbox, toDelete, stale, ruleMatches)
+    return FilterRun(toFolders, toInbox, toArchive, stale, ruleMatches)
 }
 
 /** Applies a run worked out by [planFilterRun]. Run it off the main thread. */
 fun Context.applyFilterRun(run: FilterRun) {
-    (run.stale + run.toInbox).forEach { filteredDB.delete(it.id, it.isMMS) }
+    // Moving or archiving existing messages leaves their read state as it is.
+    (run.stale + run.toInbox + run.toArchive).forEach { filteredDB.delete(it.id, it.isMMS) }
     filteredDB.insertAll(run.toFolders)
-    // Moving existing messages leaves their read state as it is.
-    run.toDelete.groupBy { it.threadId }.forEach { (threadId, spam) ->
-        val keys = spam.map { it.id to it.isMMS }.toSet()
-        getMessages(threadId, includeScheduledMessages = false, limit = Int.MAX_VALUE)
-            .filter { (it.id to it.isMMS) in keys }
-            .forEach { deleteFilteredMessage(it) }
-    }
+    run.toArchive.map { it.threadId }.distinct().forEach { updateConversationArchivedStatus(it, true) }
     refreshMessages()
     refreshConversations()
 }
