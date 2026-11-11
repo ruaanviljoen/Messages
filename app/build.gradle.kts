@@ -118,6 +118,20 @@ android {
 
     namespace = "org.fossify.messages"
 
+    testOptions {
+        unitTests {
+            // Robolectric reads the app's resources and downloads its Android jars; a mirror can be set for that
+            isIncludeAndroidResources = true
+            all { test ->
+                // needed by Robolectric for Android 16 on recent Java versions
+                test.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+                providers.gradleProperty("robolectricRepoUrl").orNull?.let {
+                    test.systemProperty("robolectric.dependency.repo.url", it)
+                }
+            }
+        }
+    }
+
     lint {
         checkReleaseBuilds = false
         abortOnError = true
@@ -155,4 +169,6 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     detektPlugins(libs.compose.detekt)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

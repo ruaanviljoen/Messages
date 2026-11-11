@@ -26,6 +26,16 @@ git config core.hooksPath .githooks
 
 Tests and documentation must use made-up data only: phone numbers of the form 082 000 000x, and addresses at example.com. Never commit real messages, message exports, contacts, screenshots of real conversations, keystores or signing details.
 
+## Tests
+
+The unit tests are in `app/src/test`. Most run on Robolectric, which simulates Android on the computer, so no phone or emulator is needed. `FakeTelephonyProvider` stands in for the phone's SMS and MMS store.
+
+```sh
+./gradlew testFossDebugUnitTest
+```
+
+The first run downloads Robolectric's Android libraries from Maven Central. Where Maven Central is blocked or rate limited, set a mirror in `~/.gradle/gradle.properties`, for example `robolectricRepoUrl=https://maven-central.storage-download.googleapis.com/maven2/`.
+
 ## Before a change is pushed
 
 1. The gitleaks hooks pass.
