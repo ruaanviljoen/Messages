@@ -57,22 +57,22 @@ class ReceivedMessageTest {
     }
 
     @Test
-    fun filesToTheRuleFolderAndKeepsNotifyingMessagesUnread() = background {
+    fun filesToTheRuleFolder() = background {
         val folderId = context.filterRulesDB.insertFolder(FilterFolder(name = "Bank"))
         val rule = FilterRule(position = 0, folderId = folderId, sender = "BANK", keywords = "", notify = true)
         context.filterRulesDB.insertRule(rule)
 
         val (id, result) = receive(1, "BANK", "Purchase of R100")
         assertTrue(result!!.notifies)
-        assertFalse("a message that notifies stays unread", store.isRead(id))
+        assertFalse("filtering never marks a message as read", store.isRead(id))
         assertEquals(listOf(id), context.filteredDB.getFolder(folderId).map { it.id })
     }
 
     @Test
-    fun spamGoesToSpamAsRead() = background {
+    fun spamGoesToSpamUnread() = background {
         val (id, result) = receive(5, "0820000002", "Reply STOP to opt out")
         assertFalse(result!!.notifies)
-        assertTrue(store.isRead(id))
+        assertFalse("filtering never marks a message as read", store.isRead(id))
         assertEquals(listOf(id), context.filteredDB.getFolder(SPAM_FOLDER_ID).map { it.id })
     }
 
@@ -82,7 +82,7 @@ class ReceivedMessageTest {
 
         val (id, result) = receive(5, "0820000002", "Reply STOP to opt out")
         assertFalse(result!!.notifies)
-        assertTrue(store.isRead(id))
+        assertFalse("filtering never marks a message as read", store.isRead(id))
         assertTrue(store.isArchived(5))
         assertTrue("an archived message stays in its conversation", context.filteredDB.getFiled().isEmpty())
         assertEquals(setOf(5L), context.getSpamArchivedThreads())

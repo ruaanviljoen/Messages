@@ -6,7 +6,6 @@ import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.messages.R
 import org.fossify.messages.databases.FilterDatabase
 import org.fossify.messages.extensions.config
-import org.fossify.messages.extensions.markMessageRead
 import org.fossify.messages.models.FilterRule
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.SPAM_FOLDER_ID
@@ -101,13 +100,10 @@ class MessageFilter(private val context: Context) {
 }
 
 /**
- * Files a received message the filters matched: moves it to its folder, or archives its conversation. Unless the rule
- * notifies, the message is marked as read. The caller shows a notification only if [FilterResult.notifies].
+ * Files a received message the filters matched: moves it to its folder, or archives its conversation. The message stays
+ * unread. The caller shows a notification only if [FilterResult.notifies].
  */
 fun Context.fileReceivedMessage(message: Message, result: FilterResult) {
-    if (!result.notifies) {
-        markMessageRead(message.id, message.isMMS)
-    }
     // if the conversation cannot be archived, the message goes to the rule's folder, which is Spam
     if (!result.archives || !archiveSpamConversation(message.threadId)) {
         filteredDB.insert(message.toFilteredMessage(folderId = result.folderId))

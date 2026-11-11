@@ -75,6 +75,7 @@ class FakeTelephonyProvider : ContentProvider() {
 
             // anything this fake does not know fails loudly instead of looking like an empty result
             else -> when (segments.firstOrNull()) {
+                // only the archived flag is kept, so loading conversations from here finds nothing
                 "conversations" -> "threads" to null
                 else -> throw UnsupportedOperationException("FakeTelephonyProvider does not support $uri")
             }
