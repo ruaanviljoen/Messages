@@ -1444,7 +1444,7 @@ class ThreadActivity : SimpleActivity() {
             if (!message.read) {
                 hadUnreadItems = true
                 markMessageRead(message.id, message.isMMS)
-                conversationsDB.markRead(threadId)
+                markConversationRead()
             }
 
             if (i == cnt - 1 && (message.type == Telephony.Sms.MESSAGE_TYPE_SENT)) {
@@ -2230,6 +2230,13 @@ class ThreadActivity : SimpleActivity() {
 
     // A folder view loads the whole conversation, because its messages can be older than the newest page.
     private fun messagesLimit() = if (isFolderView) Int.MAX_VALUE else MESSAGES_LIMIT
+
+    // In a folder view, the conversation's inbox messages may still be unread.
+    private fun markConversationRead() {
+        if (!isFolderView) {
+            conversationsDB.markRead(threadId)
+        }
+    }
 
     private fun maybeSetupRecycleBinView() {
         if (isRecycleBin || isFolderView) {

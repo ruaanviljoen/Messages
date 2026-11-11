@@ -38,7 +38,7 @@ Build order: rules engine and storage; folders in the main menu and folder views
 
 - Folders cannot be renamed yet. (Deleting is handled: a folder with no rules and no messages is removed automatically.)
 - A conversation has one notification. If an inbox message and a message for a notifying rule arrive in the same conversation, tapping the notification opens whichever arrived last.
-- Filters never mark messages as read, neither new messages nor when they run on existing ones. Opening a folder does not mark its messages as read either, so a conversation in the inbox can look unread because of a message in a folder. The same conversation also shows under the "Unread" filter.
+- Filters never mark messages as read, neither new messages nor when they run on existing ones. A filtered message is marked as read only when you open it: in its folder, it is marked read when its conversation is opened there, and opening the conversation from the inbox marks all its messages read, the filtered ones included. Until then, a conversation in the inbox can look unread, show under the "Unread" filter, and count the hidden messages in its unread number, because of a message in a folder.
 
 ## Decided: no recycle bin
 
