@@ -3,8 +3,6 @@ package org.fossify.messages.helpers
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 
-import org.fossify.messages.databases.FilterDatabase
-import org.fossify.messages.databases.MessagesDatabase
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.models.FilterFolder
@@ -53,13 +51,13 @@ class FilterRunTest {
 
     @Test
     fun movesMessagesToTheirFolderAndBack() = background {
-        val folderId = addFolderRule("FNB")
-        val sms = store.addSms(1, "FNB", "Purchase of R100", 1_000_000)
+        val folderId = addFolderRule("BANK")
+        val sms = store.addSms(1, "BANK", "Purchase of R100", 1_000_000)
         store.addSms(2, "0820000001", "Hello", 1_000_000)
 
         val first = run()
         assertEquals(listOf(sms), first.toFolders.map { it.id })
-        assertEquals(folderId, context.filteredDB.getFolder(folderId).single().folderId)
+        assertEquals(listOf(sms), context.filteredDB.getFolder(folderId).map { it.id })
         assertFalse("running the filters must not mark messages as read", store.isRead(sms))
 
         assertFalse(context.planFilterRun().hasChanges)
@@ -72,8 +70,8 @@ class FilterRunTest {
 
     @Test
     fun leavesRestoredMessagesAlone() = background {
-        addFolderRule("FNB")
-        val sms = store.addSms(1, "FNB", "Purchase of R100", 1_000_000)
+        addFolderRule("BANK")
+        val sms = store.addSms(1, "BANK", "Purchase of R100", 1_000_000)
         context.filteredDB.insert(FilteredMessage(sms, false, 1, 1_000, restored = true))
 
         assertFalse(context.planFilterRun().hasChanges)
@@ -91,6 +89,7 @@ class FilterRunTest {
         setSpamAction(SPAM_ACTION_ARCHIVE)
         val spam = store.addSms(5, "0820000002", "Reply STOP to opt out", 1_000_000)
         store.addSms(6, "0820000003", "See you later", 1_000_000)
+        context.cacheConversation(5)
 
         val first = run()
         assertEquals(listOf(spam), first.toArchive.map { it.id })
@@ -110,13 +109,33 @@ class FilterRunTest {
     fun spamRuleReturnsConversationsItNoLongerMatches() = background {
         setSpamAction(SPAM_ACTION_ARCHIVE)
         store.addSms(5, "0820000002", "Reply STOP to opt out", 1_000_000)
+        context.cacheConversation(5)
         run()
+        assertTrue(store.isArchived(5))
 
         setSpamAction(SPAM_ACTION_MOVE)
         val second = run()
-        assertEquals(setOf(5L), second.unmatchedArchived)
+        assertEquals(setOf(5L), second.toUnarchive)
+        assertFalse(store.isArchived(5))
         assertTrue(context.getSpamArchivedThreads().isEmpty())
         assertEquals(1, context.filteredDB.getFolder(SPAM_FOLDER_ID).size)
+    }
+
+    @Test
+    fun spamRuleLeavesConversationsTheUserArchivedAlone() = background {
+        val spam = store.addSms(5, "0820000002", "Reply STOP to opt out", 1_000_000)
+        context.cacheConversation(5, archived = true)
+        context.updateConversationArchivedStatus(5, true)
+
+        setSpamAction(SPAM_ACTION_ARCHIVE)
+        assertFalse("an archived conversation is not archived again", context.planFilterRun().hasChanges)
+
+        // the Spam rule did not archive it, so moving back to Spam does not unarchive it
+        setSpamAction(SPAM_ACTION_MOVE)
+        val run = run()
+        assertEquals(listOf(spam), run.toFolders.map { it.id })
+        assertTrue(run.toUnarchive.isEmpty())
+        assertTrue(store.isArchived(5))
     }
 
     @Test
@@ -130,26 +149,5 @@ class FilterRunTest {
         assertFalse(context.config.isArchiveAvailable)
         assertEquals(setOf(5L, 6L), context.filteredDB.getFolder(SPAM_FOLDER_ID).map { it.threadId }.toSet())
         assertTrue(context.getSpamArchivedThreads().isEmpty())
-    }
-}
-
-/** Runs a test's body off the main thread, where Room may be used, and rethrows what it throws. */
-internal fun background(block: () -> Unit) {
-    var error: Throwable? = null
-    Thread { runCatching(block).onFailure { error = it } }.apply {
-        start()
-        join()
-    }
-    error?.let { throw it }
-}
-
-/** Closes and forgets the app's Room databases, so that each test starts empty. */
-internal fun resetDatabases() {
-    listOf(FilterDatabase::class.java, MessagesDatabase::class.java).forEach { type ->
-        type.getDeclaredField("db").apply {
-        isAccessible = true
-        (get(null) as? androidx.room.RoomDatabase)?.close()
-        set(null, null)
-        }
     }
 }

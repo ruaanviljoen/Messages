@@ -32,7 +32,7 @@ data class FilterRule(
     /** Whether the conversations of matching messages are archived instead. Only the Spam rule may do this, for now. */
     fun archives() = isSpam && action == SPAM_ACTION_ARCHIVE
 
-    /** A short description such as: FNB, "purchase", "payment". */
+    /** A short description such as: BANK, "purchase", "payment". */
     fun describe() = (listOf(sender.trim()).filter { it.isNotEmpty() } + keywordList().map { "\"$it\"" })
         .joinToString(", ")
 }

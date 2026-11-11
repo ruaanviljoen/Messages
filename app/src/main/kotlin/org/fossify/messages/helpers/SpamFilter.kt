@@ -22,7 +22,7 @@ fun String.toComparableNumber() = filter(Char::isDigit).takeLast(COMPARABLE_NUMB
 private val PHONE_NUMBER = Regex("""^[+\d\s()-]*\d[+\d\s()-]*$""")
 
 /**
- * How a sender is compared: a phone number by its last digits, a sender name such as "FNB" or "MTN4U" by its text,
+ * How a sender is compared: a phone number by its last digits, a sender name such as "BANK" or "PROMO4U" by its text,
  * ignoring case.
  */
 fun String.toSenderKey() = trim().let { if (PHONE_NUMBER.matches(it)) it.toComparableNumber() else it.lowercase() }

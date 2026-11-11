@@ -73,7 +73,11 @@ class FakeTelephonyProvider : ContentProvider() {
                 else -> "pdu" to id?.let { "_id = $it" }
             }
 
-            else -> "threads" to null
+            // anything this fake does not know fails loudly instead of looking like an empty result
+            else -> when (segments.firstOrNull()) {
+                "conversations" -> "threads" to null
+                else -> throw UnsupportedOperationException("FakeTelephonyProvider does not support $uri")
+            }
         }
     }
 

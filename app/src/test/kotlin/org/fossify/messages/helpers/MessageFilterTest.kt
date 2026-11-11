@@ -9,14 +9,14 @@ class MessageFilterTest {
 
     @Test
     fun matchesSenderAndKeywordsTogether() {
-        assertTrue(ruleMatches("FNB", payments, "FNB", "Purchase of R250 at a shop"))
-        assertFalse(ruleMatches("FNB", payments, "FNB", "Your OTP is 123456"))
-        assertFalse(ruleMatches("FNB", payments, "Absa", "Purchase of R250 at a shop"))
+        assertTrue(ruleMatches("BANK", payments, "BANK", "Purchase of R250 at a shop"))
+        assertFalse(ruleMatches("BANK", payments, "BANK", "Your OTP is 123456"))
+        assertFalse(ruleMatches("BANK", payments, "SHOP", "Purchase of R250 at a shop"))
     }
 
     @Test
     fun matchesSenderAlone() {
-        assertTrue(ruleMatches("fnb", emptyList(), "FNB", "Anything"))
+        assertTrue(ruleMatches("bank", emptyList(), "BANK", "Anything"))
         assertTrue(ruleMatches("0820000001", emptyList(), "+27820000001", "Anything"))
         assertFalse(ruleMatches("0820000001", emptyList(), "+27820000002", "Anything"))
     }
@@ -29,6 +29,6 @@ class MessageFilterTest {
 
     @Test
     fun ruleWithoutSenderOrKeywordsMatchesNothing() {
-        assertFalse(ruleMatches("", emptyList(), "FNB", "Purchase"))
+        assertFalse(ruleMatches("", emptyList(), "BANK", "Purchase"))
     }
 }

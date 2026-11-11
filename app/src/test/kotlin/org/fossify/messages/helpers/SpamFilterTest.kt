@@ -30,7 +30,7 @@ class SpamFilterTest {
         assertEquals("0820000001".toComparableNumber(), "+27820000001".toComparableNumber())
         assertEquals("082 000 0001".toComparableNumber(), "+27 82 000 0001".toComparableNumber())
         assertEquals("", "Vodacom".toComparableNumber())
-        assertEquals("mtn4u", "MTN4U".toSenderKey())
+        assertEquals("promo4u", "PROMO4U".toSenderKey())
         assertEquals("820000001", "082 000 0001".toSenderKey())
         assertEquals("820000001", "+27 (82) 000-0001".toSenderKey())
         assertEquals("12345", "12345".toSenderKey())

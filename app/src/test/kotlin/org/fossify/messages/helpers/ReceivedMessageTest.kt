@@ -36,7 +36,7 @@ class ReceivedMessageTest {
         resetDatabases()
     }
 
-    // Receives an SMS as the receivers do: saves it, asks the filters, and files it if they match.
+    // Saves an SMS and files it as the receivers do; the receivers' notification and inbox steps are not run.
     private fun receive(threadId: Long, address: String, body: String): Pair<Long, FilterResult?> {
         val id = store.addSms(threadId, address, body, 1_000_000)
         val message = Message(
@@ -57,12 +57,12 @@ class ReceivedMessageTest {
     }
 
     @Test
-    fun filesToTheRuleFolderAndNotifiesOnlyWhenAsked() = background {
+    fun filesToTheRuleFolderAndKeepsNotifyingMessagesUnread() = background {
         val folderId = context.filterRulesDB.insertFolder(FilterFolder(name = "Bank"))
-        val rule = FilterRule(position = 0, folderId = folderId, sender = "FNB", keywords = "", notify = true)
+        val rule = FilterRule(position = 0, folderId = folderId, sender = "BANK", keywords = "", notify = true)
         context.filterRulesDB.insertRule(rule)
 
-        val (id, result) = receive(1, "FNB", "Purchase of R100")
+        val (id, result) = receive(1, "BANK", "Purchase of R100")
         assertTrue(result!!.notifies)
         assertFalse("a message that notifies stays unread", store.isRead(id))
         assertEquals(listOf(id), context.filteredDB.getFolder(folderId).map { it.id })
