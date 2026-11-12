@@ -10,6 +10,7 @@ import org.fossify.messages.helpers.deleteConversationFromFolder
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
 import org.fossify.messages.helpers.restoreConversationFromFolder
+import org.fossify.messages.helpers.showSelectedCount
 
 /** The conversations in a folder. Restoring or deleting acts only on the conversation's messages in the folder. */
 class FolderConversationsAdapter(
@@ -21,7 +22,9 @@ class FolderConversationsAdapter(
 ) : BaseConversationsAdapter(activity, recyclerView, onRefresh, itemClick) {
     override fun getActionMenuId() = R.menu.cab_recycle_bin_conversations
 
-    override fun prepareActionMode(menu: Menu) = Unit
+    override fun prepareActionMode(menu: Menu) {
+        actMode.showSelectedCount(resources, R.plurals.conversations_selected, selectedKeys.size)
+    }
 
     override fun actionItemPressed(id: Int) {
         if (selectedKeys.isEmpty()) {

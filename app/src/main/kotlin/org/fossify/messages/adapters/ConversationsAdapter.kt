@@ -22,7 +22,7 @@ import org.fossify.messages.extensions.launchConversationDetails
 import org.fossify.messages.extensions.markThreadMessagesRead
 import org.fossify.messages.extensions.markThreadMessagesUnread
 import org.fossify.messages.extensions.renameConversation
-import org.fossify.messages.extensions.updateConversationArchivedStatus
+import org.fossify.messages.helpers.archiveConversationForUser
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.showSelectedCount
 import org.fossify.messages.messaging.isShortCodeWithLetters
@@ -172,7 +172,7 @@ class ConversationsAdapter(
         val conversationsToRemove =
             currentList.filter { selectedKeys.contains(it.hashCode()) } as ArrayList<Conversation>
         conversationsToRemove.forEach {
-            activity.updateConversationArchivedStatus(it.threadId, true)
+            activity.archiveConversationForUser(it.threadId)
             activity.notificationManager.cancel(it.threadId.hashCode())
         }
 

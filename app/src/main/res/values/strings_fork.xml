@@ -53,6 +53,7 @@
     </plurals>
     <string name="delete_conversation_permanently">Delete this conversation permanently? This can\'t be undone.</string>
     <string name="archive_instead">Archive instead</string>
+    <string name="archive_not_available">This phone cannot archive conversations</string>
     <string name="search_heading_conversations">Conversations</string>
     <string name="search_heading_messages">Messages</string>
     <plurals name="messages_selected">

@@ -10,6 +10,7 @@ import org.fossify.messages.activities.SimpleActivity
 import org.fossify.messages.extensions.deleteConversation
 import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.helpers.refreshConversations
+import org.fossify.messages.helpers.showSelectedCount
 import org.fossify.messages.models.Conversation
 
 class ArchivedConversationsAdapter(
@@ -17,7 +18,9 @@ class ArchivedConversationsAdapter(
 ) : BaseConversationsAdapter(activity, recyclerView, onRefresh, itemClick) {
     override fun getActionMenuId() = R.menu.cab_archived_conversations
 
-    override fun prepareActionMode(menu: Menu) {}
+    override fun prepareActionMode(menu: Menu) {
+        actMode.showSelectedCount(resources, R.plurals.conversations_selected, selectedKeys.size)
+    }
 
     override fun actionItemPressed(id: Int) {
         if (selectedKeys.isEmpty()) {

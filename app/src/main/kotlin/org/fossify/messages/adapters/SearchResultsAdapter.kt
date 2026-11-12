@@ -13,6 +13,7 @@ import org.fossify.commons.extensions.highlightTextPart
 import org.fossify.commons.extensions.notificationManager
 import org.fossify.commons.extensions.setupViewBackground
 import org.fossify.commons.extensions.shareTextIntent
+import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.views.MyRecyclerView
@@ -21,7 +22,7 @@ import org.fossify.messages.activities.SimpleActivity
 import org.fossify.messages.databinding.ItemSearchHeadingBinding
 import org.fossify.messages.databinding.ItemSearchResultBinding
 import org.fossify.messages.extensions.config
-import org.fossify.messages.extensions.updateConversationArchivedStatus
+import org.fossify.messages.helpers.archiveConversationForUser
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.showSelectedCount
 import org.fossify.messages.models.Message
@@ -99,9 +100,14 @@ class SearchResultsAdapter(
         val question = String.format(resources.getString(R.string.archive_confirmation), items)
         ConfirmationDialog(activity, question) {
             ensureBackgroundThread {
-                threadIds.forEach {
-                    activity.updateConversationArchivedStatus(it, true)
-                    activity.notificationManager.cancel(it.hashCode())
+                // stops at the first conversation that cannot be archived, which means the phone cannot archive
+                val archived = threadIds.all { threadId ->
+                    activity.archiveConversationForUser(threadId).also {
+                        if (it) activity.notificationManager.cancel(threadId.hashCode())
+                    }
+                }
+                if (!archived) {
+                    activity.toast(R.string.archive_not_available)
                 }
                 refreshConversations()
             }
