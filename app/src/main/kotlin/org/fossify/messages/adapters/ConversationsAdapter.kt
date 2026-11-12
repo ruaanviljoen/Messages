@@ -8,6 +8,7 @@ import org.fossify.commons.extensions.addBlockedNumber
 import org.fossify.commons.extensions.copyToClipboard
 import org.fossify.commons.extensions.launchActivityIntent
 import org.fossify.commons.extensions.notificationManager
+import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.KEY_PHONE
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.views.MyRecyclerView
@@ -171,9 +172,14 @@ class ConversationsAdapter(
 
         val conversationsToRemove =
             currentList.filter { selectedKeys.contains(it.hashCode()) } as ArrayList<Conversation>
-        conversationsToRemove.forEach {
-            activity.archiveConversationForUser(it.threadId)
-            activity.notificationManager.cancel(it.threadId.hashCode())
+        // stops at the first conversation that cannot be archived, which means the phone cannot archive
+        val archived = conversationsToRemove.all {
+            activity.archiveConversationForUser(it.threadId).also { archived ->
+                if (archived) activity.notificationManager.cancel(it.threadId.hashCode())
+            }
+        }
+        if (!archived) {
+            activity.toast(R.string.archive_not_available)
         }
 
         val newList = try {
