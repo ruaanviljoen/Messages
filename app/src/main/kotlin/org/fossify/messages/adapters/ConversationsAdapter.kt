@@ -24,6 +24,7 @@ import org.fossify.messages.extensions.markThreadMessagesUnread
 import org.fossify.messages.extensions.renameConversation
 import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.helpers.refreshConversations
+import org.fossify.messages.helpers.showSelectedCount
 import org.fossify.messages.messaging.isShortCodeWithLetters
 import org.fossify.messages.models.Conversation
 
@@ -42,6 +43,7 @@ class ConversationsAdapter(
         val isGroupConversation = selectedConversation.isGroupConversation
         val archiveAvailable = activity.config.isArchiveAvailable
 
+        actMode.showSelectedCount(resources, R.plurals.conversations_selected, selectedKeys.size)
         menu.apply {
             findItem(R.id.cab_block_number).title =
                 activity.getString(org.fossify.commons.R.string.block_number)
