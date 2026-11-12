@@ -2,6 +2,12 @@
 
 Notes from testing the debug build on a Samsung Galaxy S26.
 
+## Open feature branches: decide before starting anything else
+
+Each feature is developed on its own branch. Before work starts on another feature or issue, every branch listed here gets a decision: merge it into the work branch, or drop it. Then it is removed from this list.
+
+- `feat/search-selection-clarity`: make it clear in search whether a message or a whole conversation is selected and acted on. Options under discussion: label the results and the selection count, add "Archive conversation" to the search menu, or group the results by conversation. Decision: pending.
+
 ## Fixed, waiting for testing on the phone
 
 - The Spam folder lists conversations instead of single messages, and opening one shows the normal conversation screen with only its spam, instead of a pop-up.
