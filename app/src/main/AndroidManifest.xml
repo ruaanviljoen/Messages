@@ -231,6 +231,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".receivers.ArchiveConversationReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".receivers.DirectReplyReceiver"
             android:enabled="true"
             android:exported="false" />
