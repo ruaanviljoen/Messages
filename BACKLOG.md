@@ -7,7 +7,7 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 Each feature is developed on its own branch. Before work starts on another feature or issue, every branch listed here gets a decision: merge it into the work branch, or drop it. Then it is removed from this list.
 
 - `feat/search-selection-clarity`: make it clear in search whether a message or a whole conversation is selected and acted on. Options under discussion: label the results and the selection count, add "Archive conversation" to the search menu, or group the results by conversation. Built: headings in search, "N messages selected", and "Archive conversation" in the search menu, with archiving that is safe on phones without archive. Decision: pending. On 13 November the decision was put off on purpose, to build the notification Archive button first.
-- `feat/notification-archive`: an Archive button on message notifications, which marks the conversation read and archives it. Built on top of `feat/search-selection-clarity`, because it uses that branch's safe archiving. If that branch is dropped, move this one onto the work branch and keep only the safe archiving. Decision: pending.
+- `feat/notification-archive`: an Archive button on message notifications, which marks the conversation read and archives it. Based on the work branch, separate from `feat/search-selection-clarity`, and carries its own identical copy of that branch's safe archiving. Whichever of the two is merged second has one small conflict in `strings_fork.xml`, where both add strings at the end; keep both. Decision: pending.
 
 ## Fixed, waiting for testing on the phone
 
