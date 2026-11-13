@@ -26,6 +26,7 @@ import org.fossify.messages.messaging.isShortCodeWithLetters
 import org.fossify.messages.receivers.DeleteSmsReceiver
 import org.fossify.messages.receivers.DirectReplyReceiver
 import org.fossify.messages.receivers.MarkAsReadReceiver
+import org.fossify.messages.receivers.addArchiveAction
 
 class NotificationHelper(private val context: Context) {
 
@@ -172,6 +173,10 @@ class NotificationHelper(private val context: Context) {
                 context.getString(org.fossify.commons.R.string.delete),
                 deleteSmsPendingIntent
             ).setChannelId(notificationChannelId)
+        }
+        // a message filed in a folder is not in the inbox, so archiving its conversation would not put it away
+        if (folderId == null) {
+            builder.addArchiveAction(context, threadId, notificationId)
         }
 
         var shortcut = context.shortcutHelper.getShortcut(threadId)

@@ -6,11 +6,13 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 
 Each feature is developed on its own branch. Before work starts on another feature or issue, every branch listed here gets a decision: merge it into the work branch, or drop it. Then it is removed from this list.
 
-- `feat/search-selection-clarity`: make it clear in search whether a message or a whole conversation is selected and acted on. Options under discussion: label the results and the selection count, add "Archive conversation" to the search menu, or group the results by conversation. Built: headings in search, "N messages selected", and "Archive conversation" in the search menu, with archiving that is safe on phones without archive. Decision: pending. On 13 November the decision was put off on purpose, to build the notification Archive button first.
-- `feat/notification-archive`: an Archive button on message notifications, which marks the conversation read and archives it. Based on the work branch, separate from `feat/search-selection-clarity`, and carries its own identical copy of that branch's safe archiving. Whichever of the two is merged second has one small conflict in `strings_fork.xml`, where both add strings at the end; keep both. Decision: pending.
+None at the moment.
 
 ## Fixed, waiting for testing on the phone
 
+- Search results have "Conversations" and "Messages" headings. The selection bar says "2 messages selected" in search and "2 conversations selected" in the conversation lists, and the search menu can archive the selected messages' conversations.
+- Message notifications have an Archive button, which marks the conversation read and archives it. It is left out for messages filed in a folder and on phones that cannot archive.
+- Archiving is relied on to carry over to other SMS apps, because it is stored in the phone's message store. Apps that are built well are assumed to read it.
 - The Spam folder lists conversations instead of single messages, and opening one shows the normal conversation screen with only its spam, instead of a pop-up.
 - The main screen shows its saved list straight away on start, and shows a loading indicator while the list is still empty.
 - The newest messages in a Spam conversation are no longer hidden behind the navigation buttons.
