@@ -150,4 +150,28 @@ class FilterRunTest {
         assertEquals(setOf(5L, 6L), context.filteredDB.getFolder(SPAM_FOLDER_ID).map { it.threadId }.toSet())
         assertTrue(context.getSpamArchivedThreads().isEmpty())
     }
+
+    @Test
+    fun conversationsTheUserArchivesStayArchived() = background {
+        setSpamAction(SPAM_ACTION_ARCHIVE)
+        store.addSms(5, "0820000002", "Reply STOP to opt out", 1_000_000)
+        context.cacheConversation(5)
+        run()
+
+        // the user unarchives it and later archives it again, for example from search
+        context.updateConversationArchivedStatus(5, false)
+        assertTrue(context.archiveConversationForUser(5))
+        assertTrue(context.getSpamArchivedThreads().isEmpty())
+
+        setSpamAction(SPAM_ACTION_MOVE)
+        assertTrue(run().toUnarchive.isEmpty())
+        assertTrue(store.isArchived(5))
+    }
+
+    @Test
+    fun archivingForTheUserFailsWhereThePhoneCannotArchive() = background {
+        store.removeArchive()
+        assertFalse(context.archiveConversationForUser(5))
+        assertFalse(context.archiveConversationForUser(6))
+    }
 }

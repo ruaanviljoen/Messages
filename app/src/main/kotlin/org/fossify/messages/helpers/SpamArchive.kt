@@ -42,6 +42,24 @@ fun Context.archiveSpamConversation(threadId: Long): Boolean {
 }
 
 /**
+ * Archives a conversation the user chose to archive, and forgets any earlier archiving by the Spam rule, so that a
+ * change to the rule does not unarchive it. Returns false if the phone cannot archive. Run it off the main thread.
+ */
+@Suppress("SwallowedException")
+fun Context.archiveConversationForUser(threadId: Long): Boolean {
+    try {
+        updateConversationArchivedStatus(threadId, true)
+    } catch (e: SQLiteException) {
+        return false
+    }
+    if (!config.isArchiveAvailable) {
+        return false
+    }
+    updateSpamArchivedThreads { it -= threadId }
+    return true
+}
+
+/**
  * Returns conversations the Spam rule archived to the inbox, and forgets that it archived those in [forget]. Run it off
  * the main thread.
  */

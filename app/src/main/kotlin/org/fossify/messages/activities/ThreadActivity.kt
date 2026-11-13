@@ -170,6 +170,7 @@ import org.fossify.messages.helpers.NO_FOLDER_ID
 import org.fossify.messages.helpers.getFilteredMessages
 import org.fossify.messages.helpers.restoreConversationFromFolder
 import org.fossify.messages.helpers.restoreToInbox
+import org.fossify.messages.helpers.archiveConversationForUser
 import org.fossify.messages.helpers.filteredDB
 import org.fossify.messages.helpers.MESSAGES_LIMIT
 import org.fossify.messages.helpers.PICK_CONTACT_INTENT
@@ -1273,7 +1274,9 @@ class ThreadActivity : SimpleActivity() {
 
     private fun archiveConversation() {
         ensureBackgroundThread {
-            updateConversationArchivedStatus(threadId, true)
+            if (!archiveConversationForUser(threadId)) {
+                toast(R.string.archive_not_available)
+            }
             runOnUiThread {
                 refreshConversations()
                 finish()

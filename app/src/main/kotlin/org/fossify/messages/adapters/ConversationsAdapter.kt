@@ -8,6 +8,7 @@ import org.fossify.commons.extensions.addBlockedNumber
 import org.fossify.commons.extensions.copyToClipboard
 import org.fossify.commons.extensions.launchActivityIntent
 import org.fossify.commons.extensions.notificationManager
+import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.KEY_PHONE
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.views.MyRecyclerView
@@ -22,8 +23,9 @@ import org.fossify.messages.extensions.launchConversationDetails
 import org.fossify.messages.extensions.markThreadMessagesRead
 import org.fossify.messages.extensions.markThreadMessagesUnread
 import org.fossify.messages.extensions.renameConversation
-import org.fossify.messages.extensions.updateConversationArchivedStatus
+import org.fossify.messages.helpers.archiveConversationForUser
 import org.fossify.messages.helpers.refreshConversations
+import org.fossify.messages.helpers.showSelectedCount
 import org.fossify.messages.messaging.isShortCodeWithLetters
 import org.fossify.messages.models.Conversation
 
@@ -42,6 +44,7 @@ class ConversationsAdapter(
         val isGroupConversation = selectedConversation.isGroupConversation
         val archiveAvailable = activity.config.isArchiveAvailable
 
+        actMode.showSelectedCount(resources, R.plurals.conversations_selected, selectedKeys.size)
         menu.apply {
             findItem(R.id.cab_block_number).title =
                 activity.getString(org.fossify.commons.R.string.block_number)
@@ -169,9 +172,14 @@ class ConversationsAdapter(
 
         val conversationsToRemove =
             currentList.filter { selectedKeys.contains(it.hashCode()) } as ArrayList<Conversation>
-        conversationsToRemove.forEach {
-            activity.updateConversationArchivedStatus(it.threadId, true)
-            activity.notificationManager.cancel(it.threadId.hashCode())
+        // stops at the first conversation that cannot be archived, which means the phone cannot archive
+        val archived = conversationsToRemove.all {
+            activity.archiveConversationForUser(it.threadId).also { archived ->
+                if (archived) activity.notificationManager.cancel(it.threadId.hashCode())
+            }
+        }
+        if (!archived) {
+            activity.toast(R.string.archive_not_available)
         }
 
         val newList = try {
