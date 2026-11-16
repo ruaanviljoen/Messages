@@ -6,7 +6,8 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 
 Each feature is developed on its own branch. Before work starts on another feature or issue, every branch listed here gets a decision: merge it into the work branch, or drop it. Then it is removed from this list.
 
-None at the moment.
+- `feat/rule-auto-delete`: a "Delete after" setting on each rule (never, 2 days, 1 week, 2 weeks, 1 month). Messages the rule filed are deleted once they are older than that. Decision: pending.
+- Next, on its own branch once the one above is decided: search inside a folder.
 
 ## Fixed, waiting for testing on the phone
 
