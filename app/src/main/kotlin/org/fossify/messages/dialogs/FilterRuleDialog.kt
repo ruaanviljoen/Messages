@@ -17,7 +17,7 @@ import org.fossify.messages.databinding.DialogAddBlockedKeywordBinding
 import org.fossify.messages.databinding.DialogFilterRuleBinding
 import org.fossify.messages.extensions.config
 import org.fossify.messages.helpers.DELETE_AFTER_CHOICES
-import org.fossify.messages.helpers.MILLIS_PER_SECOND
+import org.fossify.messages.helpers.markFiltersChanged
 import org.fossify.messages.helpers.chooseDeleteAfter
 import org.fossify.messages.helpers.SPAM_ACTION_ARCHIVE
 import org.fossify.messages.helpers.SPAM_ACTION_MOVE
@@ -193,7 +193,6 @@ class FilterRuleDialog(
                 ?: return@ensureBackgroundThread
             val position = rule?.position
                 ?: ((activity.filterRulesDB.getRules().filterNot { it.isSpam }.maxOfOrNull { it.position } ?: -1) + 1)
-            val savedDeleteAfterDays = if (archives) 0 else deleteAfterDays
             activity.filterRulesDB.insertRule(
                 FilterRule(
                     id = rule?.id ?: 0,
@@ -205,15 +204,10 @@ class FilterRuleDialog(
                     action = if (archives) SPAM_ACTION_ARCHIVE else SPAM_ACTION_MOVE,
                     isSpam = isSpam,
                     applyToContacts = binding.filterRuleApplyToContacts.isChecked,
-                    deleteAfterDays = savedDeleteAfterDays,
-                    // a new or changed setting deletes by itself only what grows too old from now on
-                    deleteAfterSince = if (savedDeleteAfterDays == rule?.deleteAfterDays) {
-                        rule.deleteAfterSince
-                    } else {
-                        System.currentTimeMillis() / MILLIS_PER_SECOND
-                    }
+                    deleteAfterDays = if (archives) 0 else deleteAfterDays
                 )
             )
+            activity.markFiltersChanged()
             activity.runOnUiThread {
                 dialog.dismiss()
                 callback()
@@ -244,6 +238,7 @@ class FilterRuleDialog(
             ensureBackgroundThread {
                 activity.filterRulesDB.deleteRule(rule)
                 activity.filterRulesDB.deleteUnusedFolders()
+                activity.markFiltersChanged()
                 activity.runOnUiThread {
                     dialog.dismiss()
                     callback()

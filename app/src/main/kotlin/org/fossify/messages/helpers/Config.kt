@@ -175,4 +175,9 @@ class Config(context: Context) : BaseConfig(context) {
     var lastAutoDeleteCheck: Long
         get() = prefs.getLong(LAST_AUTO_DELETE_CHECK, 0L)
         set(lastAutoDeleteCheck) = prefs.edit().putLong(LAST_AUTO_DELETE_CHECK, lastAutoDeleteCheck).apply()
+
+    // when the filter rules or the Spam exemptions last changed, in seconds
+    var filtersChangedAt: Long
+        get() = prefs.getLong(FILTERS_CHANGED_AT, 0L)
+        set(filtersChangedAt) = prefs.edit().putLong(FILTERS_CHANGED_AT, filtersChangedAt).apply()
 }

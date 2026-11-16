@@ -35,14 +35,13 @@ class AutoDeleteTest {
         resetDatabases()
     }
 
-    // [chosenDaysAgo] is when the "Delete after" setting was chosen
-    private fun addRule(deleteAfterDays: Int, chosenDaysAgo: Int = 0): FilterRule {
+    // [changedDaysAgo] is when the rules last changed
+    private fun addRule(deleteAfterDays: Int, changedDaysAgo: Int = 0): FilterRule {
         val folderId = context.filterRulesDB.insertFolder(FilterFolder(name = "Deliveries"))
-        val since = (now - chosenDaysAgo * day) / 1000
         val rule = FilterRule(
-            position = 0, folderId = folderId, sender = "", keywords = "parcel",
-            deleteAfterDays = deleteAfterDays, deleteAfterSince = since
+            position = 0, folderId = folderId, sender = "", keywords = "parcel", deleteAfterDays = deleteAfterDays
         )
+        context.config.filtersChangedAt = (now - changedDaysAgo * day) / 1000
         return rule.copy(id = context.filterRulesDB.insertRule(rule))
     }
 
@@ -81,7 +80,7 @@ class AutoDeleteTest {
 
     @Test
     fun filedMessagesAreDeletedOnceTheyExpire() = background {
-        val rule = addRule(deleteAfterDays = 2, chosenDaysAgo = 5)
+        val rule = addRule(deleteAfterDays = 2, changedDaysAgo = 5)
         val old = addFiled(1, daysAgo = 3, rule = rule)
         val restored = addFiled(2, daysAgo = 3, rule = rule, restored = true)
         val recent = addFiled(3, daysAgo = 1, rule = rule)
@@ -94,7 +93,7 @@ class AutoDeleteTest {
 
     @Test
     fun messagesStayWhenTheirRuleIsDeleted() = background {
-        val rule = addRule(deleteAfterDays = 2, chosenDaysAgo = 5)
+        val rule = addRule(deleteAfterDays = 2, changedDaysAgo = 5)
         val old = addFiled(1, daysAgo = 3, rule = rule)
         context.filterRulesDB.deleteRule(rule)
 
@@ -103,8 +102,8 @@ class AutoDeleteTest {
     }
 
     @Test
-    fun messagesAlreadyTooOldWhenTheSettingIsChosenNeedAConfirmedRun() = background {
-        // the setting is chosen now, and the run that offered to delete the old message was cancelled
+    fun messagesAlreadyTooOldWhenTheRulesChangeNeedAConfirmedRun() = background {
+        // the rules change now, and the run that offered to delete the old message was cancelled
         val rule = addRule(deleteAfterDays = 2)
         val old = addFiled(1, daysAgo = 30, rule = rule)
 
@@ -113,6 +112,18 @@ class AutoDeleteTest {
 
         assertEquals(listOf(old), run().toExpire.map { it.id })
         assertFalse("a confirmed run deletes it", store.exists(old))
+    }
+
+    @Test
+    fun aRunCanBeAppliedWithoutDeleting() = background {
+        val rule = addRule(deleteAfterDays = 2)
+        val old = store.addSms(1, "COURIER", "Your parcel is on its way", now - 3 * day)
+
+        val run = context.planFilterRun()
+        assertEquals(listOf(old), run.toExpire.map { it.id })
+        context.applyFilterRun(run.withoutDeleting())
+        assertTrue(store.exists(old))
+        assertEquals("it is filed instead", listOf(old), context.filteredDB.getFolder(rule.folderId).map { it.id })
     }
 
     @Test

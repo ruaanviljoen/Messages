@@ -10,6 +10,7 @@
     <string name="checking_messages">Checking the messages on the phone…</string>
     <string name="spam_filter_no_changes">No messages need to change.</string>
     <string name="apply">Apply</string>
+    <string name="apply_without_deleting">Apply, don\'t delete</string>
     <string name="filter_rules">Filter rules</string>
     <string name="add_filter_rule">Add rule</string>
     <string name="edit_filter_rule">Edit rule</string>

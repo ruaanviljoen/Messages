@@ -38,6 +38,7 @@ fun Activity.chooseDeleteAfter(days: Int, callback: (Int) -> Unit) {
 
 private const val SECONDS_PER_DAY = 86_400L
 private const val CHECK_INTERVAL_MILLIS = 6 * 60 * 60 * 1000L
+private const val MAX_MESSAGES_PER_CHECK = 200
 
 private fun nowSeconds() = System.currentTimeMillis() / MILLIS_PER_SECOND
 
@@ -48,19 +49,23 @@ private fun FilterRule.expiresAt(date: Int): Long? =
 /** Whether a message from [date], in seconds, is older than this rule keeps the messages it files. */
 fun FilterRule.expired(date: Int, now: Long = nowSeconds()): Boolean = expiresAt(date)?.let { it < now } == true
 
+// Whether a message from [date] became older than this rule keeps the messages it files between [since] and [now].
+private fun FilterRule.expiredBetween(date: Int, since: Long, now: Long): Boolean =
+    expiresAt(date)?.let { it in since until now } == true
+
 /**
- * Whether a filed message from [date] may be deleted without asking: it is too old now, and it became too old after the
- * rule's setting was chosen. Messages that were already too old then are only deleted by a run the user confirms.
+ * Records that the filter rules changed, which may change the rule that files a message. Call it after every change
+ * to the rules, their order or the Spam exemptions.
  */
-fun FilterRule.expiredSinceChosen(date: Int, now: Long = nowSeconds()): Boolean =
-    expiresAt(date)?.let { it in deleteAfterSince until now } == true
+fun Context.markFiltersChanged() {
+    config.filtersChangedAt = nowSeconds()
+}
 
 private val autoDeleteLock = Any()
 
 /**
- * Deletes the filed messages that have become older than the rule that files them allows, as in
- * [FilterRule.expiredSinceChosen]. Messages restored to the inbox, and messages no rule files any more, are kept.
- * Runs at most every few hours, when the app starts or a message arrives. Run it off the main thread.
+ * Runs [deleteExpiredMessages] at most every few hours. It is called when the app starts and when a message arrives.
+ * Run it off the main thread.
  */
 fun Context.deleteExpiredMessagesIfDue() {
     val due = synchronized(autoDeleteLock) {
@@ -72,19 +77,31 @@ fun Context.deleteExpiredMessagesIfDue() {
     }
 }
 
-/** Does the work of [deleteExpiredMessagesIfDue] now. Run it off the main thread. */
+/**
+ * Deletes, without asking, the filed messages that have become older than the rule that files them allows since the
+ * rules last changed ([markFiltersChanged]). Messages that were already too old then are only deleted by a run of the
+ * filters that the user confirms, so cancelling that run keeps them. Messages restored to the inbox, and messages no
+ * rule files any more, are kept. A check handles a limited number of messages, so that it stays quick when it runs
+ * while a message arrives; the rest wait for the next check. Run it off the main thread.
+ */
 fun Context.deleteExpiredMessages() {
     val filter = MessageFilter(this)
-    val folders = filter.rules.filter { it.deleteAfterDays > 0 }.mapTo(HashSet()) { it.folderId }
-    if (folders.isEmpty()) {
+    val since = config.filtersChangedAt
+    val now = nowSeconds()
+    val rulesByFolder = filter.rules.filter { it.deleteAfterDays > 0 }.groupBy { it.folderId }
+    if (rulesByFolder.isEmpty()) {
         return
     }
 
-    // only folders that a rule deletes from are read, which keeps this quick
-    val expired = filteredDB.getFiled().filter { it.folderId in folders }.filter { entry ->
+    // entries that some rule for their folder could delete now, found without reading the messages
+    val candidates = filteredDB.getFiled().filter { entry ->
+        rulesByFolder[entry.folderId]?.any { it.expiredBetween(entry.date, since, now) } == true
+    }.take(MAX_MESSAGES_PER_CHECK)
+
+    val expired = candidates.filter { entry ->
         val (address, body) = readFiledMessage(entry) ?: return@filter false
         val result = filter.filter(address, body) ?: return@filter false
-        result.folderId == entry.folderId && result.rule.expiredSinceChosen(entry.date)
+        result.folderId == entry.folderId && result.rule.expiredBetween(entry.date, since, now)
     }
     if (expired.isNotEmpty()) {
         expired.forEach { deleteMessage(it.id, it.isMMS) }

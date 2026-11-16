@@ -83,7 +83,6 @@ abstract class FilterDatabase : RoomDatabase() {
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `delete_after_days` INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `delete_after_since` INTEGER NOT NULL DEFAULT 0")
             }
         }
     }
