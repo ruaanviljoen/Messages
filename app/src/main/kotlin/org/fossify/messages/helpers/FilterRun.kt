@@ -48,6 +48,9 @@ data class FilterRun(
 ) {
     val hasChanges get() = toFolders.isNotEmpty() || toInbox.isNotEmpty() || toArchive.isNotEmpty() ||
         toExpire.isNotEmpty() || toUnarchive.isNotEmpty()
+
+    // a message to delete that is in no folder now is in the inbox
+    val expiringFromInbox get() = toExpire.count { it.folderId == NO_FOLDER_ID }
 }
 
 /**
@@ -69,11 +72,7 @@ fun Context.planFilterRun(): FilterRun {
     val ruleMatches = HashMap<Long, FilterMatches>()
 
     forEachReceivedMessage { message, address, body ->
-        val stored = entries.remove(message.id to message.isMMS)
-        val entry = stored?.takeIf { it.date == message.date }
-        if (stored != null && entry == null) {
-            stale += stored
-        }
+        val entry = entries.takeEntry(message, stale)
 
         if (entry?.restored == true) {
             return@forEachReceivedMessage
@@ -93,7 +92,7 @@ fun Context.planFilterRun(): FilterRun {
                 }
             }
 
-            result.rule.expired(message.date) -> toExpire += message
+            result.rule.expired(message.date) -> toExpire += message.copy(folderId = entry?.folderId ?: NO_FOLDER_ID)
             entry?.folderId != result.folderId -> toFolders += message.copy(folderId = result.folderId)
             else -> return@forEachReceivedMessage // already in its folder
         }
@@ -108,6 +107,19 @@ fun Context.planFilterRun(): FilterRun {
     val unmatchedArchived = archivedBySpam - spamThreads
     val toUnarchive = unmatchedArchived.filterTo(HashSet()) { it in archived }
     return FilterRun(toFolders, toInbox, toArchive, toExpire, unmatchedArchived, toUnarchive, stale, ruleMatches)
+}
+
+// Removes and returns the folder entry of [message]. An entry whose id now belongs to another message is stale.
+private fun MutableMap<Pair<Long, Boolean>, FilteredMessage>.takeEntry(
+    message: FilteredMessage,
+    stale: MutableList<FilteredMessage>
+): FilteredMessage? {
+    val stored = remove(message.id to message.isMMS) ?: return null
+    if (stored.date != message.date) {
+        stale += stored
+        return null
+    }
+    return stored
 }
 
 /** Applies a run worked out by [planFilterRun]. Run it off the main thread. */

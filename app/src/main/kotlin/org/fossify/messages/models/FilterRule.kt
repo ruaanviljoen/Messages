@@ -11,7 +11,9 @@ import org.fossify.messages.helpers.SPAM_ACTION_MOVE
  * [folderId]. The Spam rule can archive their conversations instead, when [action] says so. Either part may be empty,
  * but not both. Messages from saved contacts are left alone unless [applyToContacts], which is on by default; the
  * Spam rule starts with it off, so that saved contacts are not treated as spam. Messages the rule files are deleted
- * once they are older than [deleteAfterDays], unless it is 0.
+ * once they are older than [deleteAfterDays], unless it is 0. That happens by itself only for messages that reach
+ * that age after [deleteAfterSince], when the setting was chosen, in seconds. Older ones are deleted only by a run
+ * of the filters that the user confirms.
  *
  * The Spam rule ([isSpam]) is pinned: it runs first, its folder is Spam, and it cannot be moved or deleted. The other
  * rules run after it in [position] order, and the first rule that matches wins.
@@ -27,7 +29,8 @@ data class FilterRule(
     @ColumnInfo(name = "action", defaultValue = "0") val action: Int = SPAM_ACTION_MOVE,
     @ColumnInfo(name = "is_spam", defaultValue = "0") val isSpam: Boolean = false,
     @ColumnInfo(name = "apply_to_contacts", defaultValue = "1") val applyToContacts: Boolean = true,
-    @ColumnInfo(name = "delete_after_days", defaultValue = "0") val deleteAfterDays: Int = 0
+    @ColumnInfo(name = "delete_after_days", defaultValue = "0") val deleteAfterDays: Int = 0,
+    @ColumnInfo(name = "delete_after_since", defaultValue = "0") val deleteAfterSince: Long = 0
 ) {
     fun keywordList() = keywords.lines().map { it.trim() }.filter { it.isNotEmpty() }
 

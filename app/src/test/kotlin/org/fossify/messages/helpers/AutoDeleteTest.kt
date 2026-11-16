@@ -35,10 +35,23 @@ class AutoDeleteTest {
         resetDatabases()
     }
 
-    private fun addRule(deleteAfterDays: Int): FilterRule {
+    // [chosenDaysAgo] is when the "Delete after" setting was chosen
+    private fun addRule(deleteAfterDays: Int, chosenDaysAgo: Int = 0): FilterRule {
         val folderId = context.filterRulesDB.insertFolder(FilterFolder(name = "Deliveries"))
-        val rule = FilterRule(position = 0, folderId = folderId, sender = "", keywords = "parcel")
-        return rule.copy(id = context.filterRulesDB.insertRule(rule.copy(deleteAfterDays = deleteAfterDays)))
+        val since = (now - chosenDaysAgo * day) / 1000
+        val rule = FilterRule(
+            position = 0, folderId = folderId, sender = "", keywords = "parcel",
+            deleteAfterDays = deleteAfterDays, deleteAfterSince = since
+        )
+        return rule.copy(id = context.filterRulesDB.insertRule(rule))
+    }
+
+    // Saves a message received [daysAgo] and files it to the rule's folder.
+    private fun addFiled(threadId: Long, daysAgo: Int, rule: FilterRule, restored: Boolean = false): Long {
+        val id = store.addSms(threadId, "COURIER", "Your parcel update", now - daysAgo * day)
+        val date = ((now - daysAgo * day) / 1000).toInt()
+        context.filteredDB.insert(FilteredMessage(id, false, threadId, date, restored, rule.folderId))
+        return id
     }
 
     private fun run() = context.planFilterRun().also { context.applyFilterRun(it) }
@@ -51,6 +64,7 @@ class AutoDeleteTest {
 
         val run = run()
         assertEquals(listOf(old), run.toExpire.map { it.id })
+        assertEquals("the old message was still in the inbox", 1, run.expiringFromInbox)
         assertFalse(store.exists(old))
         assertTrue(store.exists(recent))
         assertEquals(listOf(recent), context.filteredDB.getFolder(rule.folderId).map { it.id })
@@ -67,17 +81,10 @@ class AutoDeleteTest {
 
     @Test
     fun filedMessagesAreDeletedOnceTheyExpire() = background {
-        val rule = addRule(deleteAfterDays = 2)
-        val old = store.addSms(1, "COURIER", "Your parcel is on its way", now - 3 * day)
-        val restored = store.addSms(2, "COURIER", "Your parcel was delivered", now - 3 * day)
-        val oldDate = ((now - 3 * day) / 1000).toInt()
-        context.filteredDB.insert(FilteredMessage(old, false, 1, oldDate, folderId = rule.folderId))
-        val restoredEntry = FilteredMessage(restored, false, 2, oldDate, restored = true, folderId = rule.folderId)
-        context.filteredDB.insert(restoredEntry)
-
-        val recent = store.addSms(3, "COURIER", "Your parcel arrives today", now - day)
-        val recentDate = ((now - day) / 1000).toInt()
-        context.filteredDB.insert(FilteredMessage(recent, false, 3, recentDate, folderId = rule.folderId))
+        val rule = addRule(deleteAfterDays = 2, chosenDaysAgo = 5)
+        val old = addFiled(1, daysAgo = 3, rule = rule)
+        val restored = addFiled(2, daysAgo = 3, rule = rule, restored = true)
+        val recent = addFiled(3, daysAgo = 1, rule = rule)
 
         context.deleteExpiredMessages()
         assertFalse(store.exists(old))
@@ -87,14 +94,25 @@ class AutoDeleteTest {
 
     @Test
     fun messagesStayWhenTheirRuleIsDeleted() = background {
-        val rule = addRule(deleteAfterDays = 2)
-        val old = store.addSms(1, "COURIER", "Your parcel is on its way", now - 3 * day)
-        val oldDate = ((now - 3 * day) / 1000).toInt()
-        context.filteredDB.insert(FilteredMessage(old, false, 1, oldDate, folderId = rule.folderId))
+        val rule = addRule(deleteAfterDays = 2, chosenDaysAgo = 5)
+        val old = addFiled(1, daysAgo = 3, rule = rule)
         context.filterRulesDB.deleteRule(rule)
 
         context.deleteExpiredMessages()
         assertTrue(store.exists(old))
+    }
+
+    @Test
+    fun messagesAlreadyTooOldWhenTheSettingIsChosenNeedAConfirmedRun() = background {
+        // the setting is chosen now, and the run that offered to delete the old message was cancelled
+        val rule = addRule(deleteAfterDays = 2)
+        val old = addFiled(1, daysAgo = 30, rule = rule)
+
+        context.deleteExpiredMessages()
+        assertTrue("cancelling the run keeps the message", store.exists(old))
+
+        assertEquals(listOf(old), run().toExpire.map { it.id })
+        assertFalse("a confirmed run deletes it", store.exists(old))
     }
 
     @Test

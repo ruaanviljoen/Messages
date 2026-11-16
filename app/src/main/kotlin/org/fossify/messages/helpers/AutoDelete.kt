@@ -10,7 +10,6 @@ import org.fossify.commons.extensions.getIntValue
 import org.fossify.commons.extensions.getLongValue
 import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
-import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.models.RadioItem
 import org.fossify.messages.R
 import org.fossify.messages.extensions.config
@@ -40,19 +39,35 @@ fun Activity.chooseDeleteAfter(days: Int, callback: (Int) -> Unit) {
 private const val SECONDS_PER_DAY = 86_400L
 private const val CHECK_INTERVAL_MILLIS = 6 * 60 * 60 * 1000L
 
+private fun nowSeconds() = System.currentTimeMillis() / MILLIS_PER_SECOND
+
+// When a message from [date], in seconds, becomes older than this rule keeps the messages it files, or null if never.
+private fun FilterRule.expiresAt(date: Int): Long? =
+    if (deleteAfterDays > 0 && !archives()) date + deleteAfterDays * SECONDS_PER_DAY else null
+
 /** Whether a message from [date], in seconds, is older than this rule keeps the messages it files. */
-fun FilterRule.expired(date: Int, nowSeconds: Long = System.currentTimeMillis() / MILLIS_PER_SECOND): Boolean =
-    deleteAfterDays > 0 && !archives() && date < nowSeconds - deleteAfterDays * SECONDS_PER_DAY
+fun FilterRule.expired(date: Int, now: Long = nowSeconds()): Boolean = expiresAt(date)?.let { it < now } == true
 
 /**
- * Deletes the filed messages that are older than the rule that files them allows. Messages restored to the inbox, and
- * messages no rule files any more, are kept. It reads only the filed messages, and runs at most every few hours, when
- * the app starts or a message arrives.
+ * Whether a filed message from [date] may be deleted without asking: it is too old now, and it became too old after the
+ * rule's setting was chosen. Messages that were already too old then are only deleted by a run the user confirms.
  */
-fun Context.deleteExpiredMessagesIfDue() = ensureBackgroundThread {
-    val now = System.currentTimeMillis()
-    if (now - config.lastAutoDeleteCheck >= CHECK_INTERVAL_MILLIS) {
-        config.lastAutoDeleteCheck = now
+fun FilterRule.expiredSinceChosen(date: Int, now: Long = nowSeconds()): Boolean =
+    expiresAt(date)?.let { it in deleteAfterSince until now } == true
+
+private val autoDeleteLock = Any()
+
+/**
+ * Deletes the filed messages that have become older than the rule that files them allows, as in
+ * [FilterRule.expiredSinceChosen]. Messages restored to the inbox, and messages no rule files any more, are kept.
+ * Runs at most every few hours, when the app starts or a message arrives. Run it off the main thread.
+ */
+fun Context.deleteExpiredMessagesIfDue() {
+    val due = synchronized(autoDeleteLock) {
+        val now = System.currentTimeMillis()
+        (now - config.lastAutoDeleteCheck >= CHECK_INTERVAL_MILLIS).also { if (it) config.lastAutoDeleteCheck = now }
+    }
+    if (due) {
         deleteExpiredMessages()
     }
 }
@@ -60,14 +75,16 @@ fun Context.deleteExpiredMessagesIfDue() = ensureBackgroundThread {
 /** Does the work of [deleteExpiredMessagesIfDue] now. Run it off the main thread. */
 fun Context.deleteExpiredMessages() {
     val filter = MessageFilter(this)
-    if (filter.rules.none { it.deleteAfterDays > 0 }) {
+    val folders = filter.rules.filter { it.deleteAfterDays > 0 }.mapTo(HashSet()) { it.folderId }
+    if (folders.isEmpty()) {
         return
     }
 
-    val expired = filteredDB.getFiled().filter { entry ->
+    // only folders that a rule deletes from are read, which keeps this quick
+    val expired = filteredDB.getFiled().filter { it.folderId in folders }.filter { entry ->
         val (address, body) = readFiledMessage(entry) ?: return@filter false
         val result = filter.filter(address, body) ?: return@filter false
-        result.folderId == entry.folderId && result.rule.expired(entry.date)
+        result.folderId == entry.folderId && result.rule.expiredSinceChosen(entry.date)
     }
     if (expired.isNotEmpty()) {
         expired.forEach { deleteMessage(it.id, it.isMMS) }

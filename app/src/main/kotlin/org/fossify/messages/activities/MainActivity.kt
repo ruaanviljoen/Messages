@@ -120,7 +120,7 @@ class MainActivity : SimpleActivity() {
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
 
         restoreRecycledMessages()
-        deleteExpiredMessagesIfDue()
+        ensureBackgroundThread { deleteExpiredMessagesIfDue() }
         clearAllMessagesIfNeeded {
             loadMessages()
         }
