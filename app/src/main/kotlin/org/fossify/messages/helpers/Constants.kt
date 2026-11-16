@@ -109,6 +109,7 @@ const val SPAM_ACTION = "spam_action"
 const val FILTER_SAVED_CONTACTS = "filter_saved_contacts"
 const val SPAM_EXEMPT_NUMBERS = "spam_exempt_numbers"
 const val SPAM_ARCHIVED_THREADS = "spam_archived_threads"
+const val LAST_AUTO_DELETE_CHECK = "last_auto_delete_check"
 const val SPAM_ACTION_MOVE = 0
 // earlier versions stored 1 for deleting, so a Spam rule that deleted now archives
 const val SPAM_ACTION_ARCHIVE = 1

@@ -16,6 +16,8 @@ import org.fossify.messages.R
 import org.fossify.messages.databinding.DialogAddBlockedKeywordBinding
 import org.fossify.messages.databinding.DialogFilterRuleBinding
 import org.fossify.messages.extensions.config
+import org.fossify.messages.helpers.DELETE_AFTER_CHOICES
+import org.fossify.messages.helpers.chooseDeleteAfter
 import org.fossify.messages.helpers.SPAM_ACTION_ARCHIVE
 import org.fossify.messages.helpers.SPAM_ACTION_MOVE
 import org.fossify.messages.helpers.addContactPicker
@@ -39,6 +41,7 @@ class FilterRuleDialog(
     private var folderId = rule?.folderId
     // where the phone cannot archive, the rule moves to Spam and is shown and saved that way
     private var archives = rule?.archives() == true && activity.config.isArchiveAvailable
+    private var deleteAfterDays = rule?.deleteAfterDays ?: 0
 
     // A folder named in this dialog is created only when the rule is saved.
     private var newFolderName: String? = null
@@ -59,6 +62,12 @@ class FilterRuleDialog(
             // Spam never notifies
             filterRuleNotify.beGoneIf(isSpam)
             filterRuleAction.setOnClickListener { chooseAction() }
+            filterRuleDeleteAfter.setOnClickListener {
+                activity.chooseDeleteAfter(deleteAfterDays) {
+                    deleteAfterDays = it
+                    showAction()
+                }
+            }
             filterRuleSenderHint.addContactPicker(activity) { filterRuleSender.setText(it) }
         }
         showAction()
@@ -95,6 +104,10 @@ class FilterRuleDialog(
                 else -> ""
             }
         )
+        // archived messages stay in their conversations, so there is nothing to delete later
+        binding.filterRuleDeleteAfterHint.beGoneIf(archives)
+        val label = DELETE_AFTER_CHOICES.firstOrNull { it.first == deleteAfterDays }?.second
+        binding.filterRuleDeleteAfter.setText(label ?: R.string.delete_after_never)
     }
 
     // The Spam rule moves to Spam or, where the phone can, archives. Other rules move to a folder or a new one.
@@ -189,7 +202,8 @@ class FilterRuleDialog(
                     notify = !isSpam && binding.filterRuleNotify.isChecked,
                     action = if (archives) SPAM_ACTION_ARCHIVE else SPAM_ACTION_MOVE,
                     isSpam = isSpam,
-                    applyToContacts = binding.filterRuleApplyToContacts.isChecked
+                    applyToContacts = binding.filterRuleApplyToContacts.isChecked,
+                    deleteAfterDays = if (archives) 0 else deleteAfterDays
                 )
             )
             activity.runOnUiThread {

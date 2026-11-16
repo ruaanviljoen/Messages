@@ -27,6 +27,13 @@
     <string name="filter_run_inbox">Return to the inbox: %d</string>
     <string name="filter_run_archive">Archive conversations: %d</string>
     <string name="filter_run_unarchive">Return conversations from the archive: %d</string>
+    <string name="filter_run_expire">Delete, older than the rule keeps them: %d</string>
+    <string name="delete_after">Delete after</string>
+    <string name="delete_after_never">Never</string>
+    <string name="delete_after_2_days">2 days</string>
+    <string name="delete_after_1_week">1 week</string>
+    <string name="delete_after_2_weeks">2 weeks</string>
+    <string name="delete_after_1_month">1 month</string>
     <string name="filter_run_matches">Messages matching filters:</string>
     <string name="filter_run_filter">%1$s (%2$d)</string>
     <string name="filter_run_keyword">\"%1$s\": %2$d</string>

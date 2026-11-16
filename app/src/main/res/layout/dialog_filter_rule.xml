@@ -31,6 +31,25 @@
         </org.fossify.commons.views.MyTextInputLayout>
 
         <org.fossify.commons.views.MyTextInputLayout
+            android:id="@+id/filter_rule_delete_after_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/activity_margin"
+            android:layout_marginBottom="@dimen/activity_margin"
+            android:hint="@string/delete_after">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/filter_rule_delete_after"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:cursorVisible="false"
+                android:focusable="false"
+                android:inputType="none"
+                android:textSize="@dimen/normal_text_size" />
+
+        </org.fossify.commons.views.MyTextInputLayout>
+
+        <org.fossify.commons.views.MyTextInputLayout
             android:id="@+id/filter_rule_sender_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

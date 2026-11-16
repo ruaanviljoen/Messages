@@ -171,4 +171,8 @@ class Config(context: Context) : BaseConfig(context) {
     var spamArchivedThreads: Set<String>
         get() = prefs.getStringSet(SPAM_ARCHIVED_THREADS, HashSet<String>())!!
         set(spamArchivedThreads) = prefs.edit().putStringSet(SPAM_ARCHIVED_THREADS, spamArchivedThreads).apply()
+
+    var lastAutoDeleteCheck: Long
+        get() = prefs.getLong(LAST_AUTO_DELETE_CHECK, 0L)
+        set(lastAutoDeleteCheck) = prefs.edit().putLong(LAST_AUTO_DELETE_CHECK, lastAutoDeleteCheck).apply()
 }

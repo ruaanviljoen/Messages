@@ -24,6 +24,7 @@ import org.fossify.messages.extensions.showReceivedMessageNotification
 import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.helpers.FilterResult
 import org.fossify.messages.helpers.MessageFilter
+import org.fossify.messages.helpers.deleteExpiredMessagesIfDue
 import org.fossify.messages.helpers.fileReceivedMessage
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
@@ -71,6 +72,7 @@ class SmsReceiver : BroadcastReceiver() {
                     status = status,
                     filterResult = filterResult
                 )
+                appContext.deleteExpiredMessagesIfDue()
             } finally {
                 pending.finish()
             }
