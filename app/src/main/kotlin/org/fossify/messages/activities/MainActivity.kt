@@ -9,7 +9,6 @@ import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
 import android.provider.Telephony
-import android.text.TextUtils
 import androidx.appcompat.content.res.AppCompatResources
 import org.fossify.commons.dialogs.PermissionRequiredDialog
 import org.fossify.commons.extensions.adjustAlpha
@@ -24,10 +23,7 @@ import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.checkAppSideloading
 import org.fossify.commons.extensions.checkWhatsNew
 import org.fossify.commons.extensions.convertToBitmap
-import org.fossify.commons.extensions.fadeIn
-import org.fossify.commons.extensions.formatDateOrTime
 import org.fossify.commons.extensions.getMyContactsCursor
-import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.hideKeyboard
@@ -44,7 +40,6 @@ import org.fossify.commons.helpers.MyContactsContentProvider
 import org.fossify.commons.helpers.PERMISSION_READ_CONTACTS
 import org.fossify.commons.helpers.PERMISSION_READ_SMS
 import org.fossify.commons.helpers.PERMISSION_SEND_SMS
-import org.fossify.commons.helpers.SHORT_ANIMATION_DURATION
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.helpers.isQPlus
 import org.fossify.commons.models.FAQItem
@@ -52,7 +47,6 @@ import org.fossify.commons.models.Release
 import org.fossify.messages.BuildConfig
 import org.fossify.messages.R
 import org.fossify.messages.adapters.ConversationsAdapter
-import org.fossify.messages.adapters.SearchResultsAdapter
 import org.fossify.messages.databinding.ActivityMainBinding
 import org.fossify.messages.extensions.clearAllMessagesIfNeeded
 import org.fossify.messages.extensions.clearExpiredScheduledMessages
@@ -62,16 +56,10 @@ import org.fossify.messages.extensions.getConversations
 import org.fossify.messages.extensions.getMessages
 import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.messagesDB
-import org.fossify.messages.helpers.FOLDER_ID
 import org.fossify.messages.helpers.ReadFilterChips
-import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
-import org.fossify.messages.helpers.deleteMessagesFromSearch
-import org.fossify.messages.helpers.filteredDB
-import org.fossify.messages.helpers.getFolderNames
 import org.fossify.messages.helpers.isFolderItem
-import org.fossify.messages.helpers.searchMessages
 import org.fossify.messages.helpers.restoreRecycledMessages
 import org.fossify.messages.helpers.deleteExpiredMessagesIfDue
 import org.fossify.messages.helpers.updateFolderMenuItems
@@ -79,9 +67,7 @@ import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.withoutStoredSpamOnly
 import org.fossify.messages.models.Conversation
 import org.fossify.messages.models.Events
-import org.fossify.messages.models.Message
 import org.fossify.messages.models.SPAM_FOLDER_ID
-import org.fossify.messages.models.SearchResult
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
@@ -93,11 +79,7 @@ class MainActivity : SimpleActivity() {
 
     private var storedTextColor = 0
     private var storedFontSize = 0
-    private var lastSearchedText = ""
-
-    // The folders of search results that are in a folder, by message id and type, and the folders' names.
-    private var searchResultFolders = emptyMap<Pair<Long, Boolean>, Long>()
-    private var folderNames = emptyMap<Long, String>()
+    private val searchPanel by lazy { MessageSearchPanel(this, binding.mainMenu, binding.searchHolder) }
 
     // The "Unread" and "Read" chips under the search bar narrow the conversation list.
     private var lastConversations = ArrayList<Conversation>()
@@ -148,7 +130,7 @@ class MainActivity : SimpleActivity() {
         }
 
         updateTextColors(binding.mainCoordinator)
-        binding.searchHolder.setBackgroundColor(getProperBackgroundColor())
+        searchPanel.updateColors()
 
         val properPrimaryColor = getProperPrimaryColor()
         binding.noConversationsPlaceholder2.setTextColor(properPrimaryColor)
@@ -179,22 +161,9 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    // The search text survives a rotation, but the open search does not. Reopen it as a tap on the search box does
-    // (focus opens it), after the search menu has set up its focus listener, and repeat the search.
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         super.onRestoreInstanceState(savedInstanceState)
-        val query = binding.mainMenu.getCurrentQuery()
-        if (query.isNotEmpty() || binding.mainMenu.binding.topToolbarSearch.hasFocus()) {
-            binding.mainMenu.post {
-                currentFocus?.clearFocus()
-                binding.mainMenu.focusView()
-                if (query.isNotEmpty()) {
-                    binding.searchHolder.alpha = 1f
-                    binding.searchHolder.beVisible()
-                    searchTextChanged(query, forceUpdate = true)
-                }
-            }
-        }
+        searchPanel.restore()
     }
 
     private fun setupOptionsMenu() {
@@ -202,20 +171,7 @@ class MainActivity : SimpleActivity() {
         binding.mainMenu.toggleHideOnScroll(true)
         binding.mainMenu.setupMenu()
 
-        binding.mainMenu.onSearchClosedListener = {
-            fadeOutSearch()
-        }
-
-        binding.mainMenu.onSearchTextChangedListener = { text ->
-            if (text.isNotEmpty()) {
-                if (binding.searchHolder.alpha < 1f) {
-                    binding.searchHolder.fadeIn()
-                }
-            } else {
-                fadeOutSearch()
-            }
-            searchTextChanged(text)
-        }
+        searchPanel.setup()
 
         binding.mainMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
             if (menuItem.isFolderItem()) {
@@ -511,16 +467,6 @@ class MainActivity : SimpleActivity() {
         binding.noConversationsPlaceholder2.beVisibleIf(show && !filteredOut)
     }
 
-    private fun fadeOutSearch() {
-        binding.searchHolder.animate()
-            .alpha(0f)
-            .setDuration(SHORT_ANIMATION_DURATION)
-            .withEndAction {
-                binding.searchHolder.beGone()
-                searchTextChanged("", true)
-            }.start()
-    }
-
     @SuppressLint("NotifyDataSetChanged")
     private fun notifyDatasetChanged() {
         getOrCreateConversationsAdapter().notifyDataSetChanged()
@@ -578,126 +524,6 @@ class MainActivity : SimpleActivity() {
             .setIntent(intent)
             .setRank(0)
             .build()
-    }
-
-    private fun searchTextChanged(text: String, forceUpdate: Boolean = false) {
-        if (!binding.mainMenu.isSearchOpen && !forceUpdate) {
-            return
-        }
-
-        lastSearchedText = text
-        binding.searchPlaceholder2.beGoneIf(text.length >= 2)
-        if (text.length >= 2) {
-            ensureBackgroundThread {
-                val searchQuery = "%$text%"
-                val messages = searchMessages(text)
-                val conversations = conversationsDB.getConversationsWithText(searchQuery)
-                val filed = filteredDB.getFiled().associateBy { it.id to it.isMMS }
-                val names = getFolderNames()
-                if (text == lastSearchedText) {
-                    searchResultFolders = messages.mapNotNull { message ->
-                        val entry = filed[message.id to message.isMMS]?.takeIf { it.date == message.date }
-                        entry?.let { (message.id to message.isMMS) to it.folderId }
-                    }.toMap()
-                    folderNames = names
-                    showSearchResults(messages, conversations, text)
-                }
-            }
-        } else {
-            binding.searchPlaceholder.beVisible()
-            binding.searchResultsList.beGone()
-        }
-    }
-
-    private fun showSearchResults(
-        messages: List<Message>,
-        conversations: List<Conversation>,
-        searchedText: String,
-    ) {
-        val searchResults = ArrayList<SearchResult>()
-        conversations.forEach { conversation ->
-            val date = (conversation.date * 1000L).formatDateOrTime(
-                context = this,
-                hideTimeOnOtherDays = true,
-                showCurrentYear = true
-            )
-
-            val searchResult = SearchResult(
-                messageId = -1,
-                title = conversation.title,
-                snippet = conversation.phoneNumber,
-                date = date,
-                threadId = conversation.threadId,
-                photoUri = conversation.photoUri
-            )
-            searchResults.add(searchResult)
-        }
-
-        messages.sortedByDescending { it.date }.forEach { message ->
-            var recipient = message.senderName
-            if (recipient.isEmpty() && message.participants.isNotEmpty()) {
-                val participantNames = message.participants.map { it.name }
-                recipient = TextUtils.join(", ", participantNames)
-            }
-
-            val date = (message.date * 1000L).formatDateOrTime(
-                context = this,
-                hideTimeOnOtherDays = true,
-                showCurrentYear = true
-            )
-
-            val folderName = searchResultFolders[message.id to message.isMMS]?.let { folderNames[it] }
-            val searchResult = SearchResult(
-                messageId = message.id,
-                title = if (folderName != null) "$recipient · $folderName" else recipient,
-                snippet = message.body,
-                date = date,
-                threadId = message.threadId,
-                photoUri = message.senderPhotoUri,
-                message = message
-            )
-            searchResults.add(searchResult)
-        }
-
-        runOnUiThread {
-            binding.searchResultsList.beVisibleIf(searchResults.isNotEmpty())
-            binding.searchPlaceholder.beVisibleIf(searchResults.isEmpty())
-
-            val currAdapter = binding.searchResultsList.adapter
-            if (currAdapter == null) {
-                SearchResultsAdapter(
-                    activity = this,
-                    searchResults = searchResults,
-                    recyclerView = binding.searchResultsList,
-                    highlightText = searchedText,
-                    deleteMessages = { deleteSearchedMessages(it) }
-                ) {
-                    hideKeyboard()
-                    Intent(this, ThreadActivity::class.java).apply {
-                        putExtra(THREAD_ID, (it as SearchResult).threadId)
-                        putExtra(THREAD_TITLE, it.title)
-                        putExtra(SEARCHED_MESSAGE_ID, it.messageId)
-                        // a result in a folder opens the conversation's messages in that folder
-                        it.message?.let { m -> searchResultFolders[m.id to m.isMMS] }?.let { putExtra(FOLDER_ID, it) }
-                        startActivity(this)
-                    }
-                }.apply {
-                    binding.searchResultsList.adapter = this
-                }
-            } else {
-                (currAdapter as SearchResultsAdapter).updateItems(searchResults, searchedText)
-            }
-        }
-    }
-
-    // Deletes messages selected in the search results, as the conversation screen does, and repeats the search.
-    private fun deleteSearchedMessages(messages: List<Message>) {
-        deleteMessagesFromSearch(messages)
-        runOnUiThread {
-            if (binding.mainMenu.isSearchOpen) {
-                searchTextChanged(lastSearchedText, forceUpdate = true)
-            }
-        }
     }
 
     private fun launchRecycleBin() {
