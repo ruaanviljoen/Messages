@@ -48,6 +48,35 @@ fun Context.getFolderConversations(folderId: Long): ArrayList<Conversation> {
     }
 }
 
+/** The text of every message in a folder that is still on the phone. Run it off the main thread. */
+fun Context.getFolderTexts(folderId: Long): Map<FilteredMessage, String> =
+    filteredDB.getFolder(folderId).mapNotNull { entry -> getFilteredText(entry)?.let { entry to it } }.toMap()
+
+/**
+ * The [conversations] of a folder that match [text]: by a message in the folder ([texts]), or by name or number. A
+ * conversation found by a message shows the newest matching one as its snippet, and that message's id comes with it,
+ * so that the conversation can be opened at it.
+ */
+fun searchFolder(
+    conversations: List<Conversation>,
+    texts: Map<FilteredMessage, String>,
+    text: String
+): List<Pair<Conversation, Long?>> {
+    val byThread = texts.entries.groupBy { it.key.threadId }
+    return conversations.mapNotNull { conversation ->
+        val match = byThread[conversation.threadId].orEmpty()
+            .filter { matchesSearch(it.value, text) }
+            .maxByOrNull { it.key.date }
+        when {
+            match != null -> conversation.copy(snippet = match.value, date = match.key.date) to match.key.id
+            matchesSearch(conversation.title, text) || matchesSearch(conversation.phoneNumber, text) ->
+                conversation to null
+
+            else -> null
+        }
+    }
+}
+
 // The text of a message in a folder, or null if it is gone or its id now belongs to another message.
 private fun Context.getFilteredText(entry: FilteredMessage): String? {
     var text: String? = null
