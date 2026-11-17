@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import org.fossify.commons.extensions.beGoneIf
 import org.fossify.commons.extensions.beVisibleIf
+import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.updateTextColors
 import org.fossify.commons.extensions.viewBinding
@@ -58,6 +59,7 @@ class FolderActivity : SimpleActivity() {
         binding.folderMenu.updateColors()
         updateTextColors(binding.folderCoordinator)
         searchPanel.updateColors()
+        binding.conversationsFastscroller.updateColors(getProperPrimaryColor())
         loadFolderConversations()
     }
 

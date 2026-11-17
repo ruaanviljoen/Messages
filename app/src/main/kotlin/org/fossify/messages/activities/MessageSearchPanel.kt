@@ -37,6 +37,9 @@ class MessageSearchPanel(
     private val folderId: Long? = null
 ) {
     private var lastSearchedText = ""
+
+    // only the newest search's results are shown, so that a slower, older one cannot replace them
+    private var request = 0
     private var findings: SearchFindings? = null
 
     /** Shows the results while the search has text, and hides them when it closes. */
@@ -92,13 +95,14 @@ class MessageSearchPanel(
         }
 
         lastSearchedText = text
+        val number = ++request
         views.searchPlaceholder2.beGoneIf(text.length >= MIN_SEARCH_LENGTH)
         if (text.length >= MIN_SEARCH_LENGTH) {
             ensureBackgroundThread {
                 val found = activity.findForSearch(text, folderId)
                 val results = toResults(found)
                 activity.runOnUiThread {
-                    if (text == lastSearchedText) {
+                    if (number == request) {
                         findings = found
                         show(results, text)
                     }
