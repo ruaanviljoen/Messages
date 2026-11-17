@@ -3,6 +3,7 @@ package org.fossify.messages.helpers
 import android.content.Context
 import android.provider.Telephony.Mms
 import android.provider.Telephony.Sms
+import org.fossify.commons.extensions.getLongValue
 import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
 import org.fossify.messages.databases.FilterDatabase
@@ -48,9 +49,29 @@ fun Context.getFolderConversations(folderId: Long): ArrayList<Conversation> {
     }
 }
 
-/** The text of every message in a folder that is still on the phone. Run it off the main thread. */
-fun Context.getFolderTexts(folderId: Long): Map<FilteredMessage, String> =
-    filteredDB.getFolder(folderId).mapNotNull { entry -> getFilteredText(entry)?.let { entry to it } }.toMap()
+/**
+ * The text of every message in a folder that is still on the phone. SMS are read in batches, which keeps this quick
+ * in a large folder. Run it off the main thread.
+ */
+fun Context.getFolderTexts(folderId: Long): Map<FilteredMessage, String> {
+    val (mms, sms) = filteredDB.getFolder(folderId).partition { it.isMMS }
+    val texts = HashMap<FilteredMessage, String>()
+    sms.chunked(SMS_BATCH_SIZE).forEach { batch ->
+        val entries = batch.associateBy { it.id }
+        val selection = "${Sms._ID} IN (${batch.joinToString(",") { it.id.toString() }})"
+        queryCursor(Sms.CONTENT_URI, arrayOf(Sms._ID, Sms.DATE, Sms.BODY), selection) { cursor ->
+            val entry = entries[cursor.getLongValue(Sms._ID)] ?: return@queryCursor
+            // an id that now belongs to another message is skipped
+            if ((cursor.getLongValue(Sms.DATE) / MILLIS_PER_SECOND).toInt() == entry.date) {
+                texts[entry] = cursor.getStringValue(Sms.BODY).orEmpty()
+            }
+        }
+    }
+    mms.forEach { entry -> getFilteredText(entry)?.let { texts[entry] = it } }
+    return texts
+}
+
+private const val SMS_BATCH_SIZE = 500
 
 /**
  * The [conversations] of a folder that match [text]: by a message in the folder ([texts]), or by name or number. A

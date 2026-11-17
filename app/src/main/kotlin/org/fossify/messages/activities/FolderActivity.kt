@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.MenuItem
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.widget.SearchView
 import org.fossify.commons.extensions.beGoneIf
 import org.fossify.commons.extensions.beVisibleIf
@@ -19,11 +21,8 @@ import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
 import org.fossify.messages.helpers.getFolderConversations
-import org.fossify.messages.helpers.getFolderTexts
-import org.fossify.messages.helpers.searchFolder
 import org.fossify.messages.models.Conversation
 import org.fossify.messages.models.Events
-import org.fossify.messages.models.FilteredMessage
 import org.fossify.messages.models.SPAM_FOLDER_ID
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
@@ -38,13 +37,17 @@ class FolderActivity : SimpleActivity() {
     private val folderId by lazy { intent.getLongExtra(FOLDER_ID, SPAM_FOLDER_ID) }
     private val searchItem by lazy { binding.recycleBinToolbar.menu.findItem(R.id.search) }
 
-    // The folder's conversations, and while searching the text, the folder's message texts and the message to open
-    // each found conversation at.
-    private var conversations = emptyList<Conversation>()
-    private var searchText = ""
-    @Volatile
-    private var folderTexts: Map<FilteredMessage, String>? = null
+    private val folderSearch by lazy { FolderSearch(this, folderId) { show(it) } }
+
+    // the message to open each found conversation at, while searching
     private var foundMessages = emptyMap<Long, Long>()
+
+    // while the search field is open, Back closes it instead of the screen
+    private val closeSearch = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            searchItem.collapseActionView()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +55,7 @@ class FolderActivity : SimpleActivity() {
         title = intent.getStringExtra(FOLDER_NAME) ?: getString(R.string.spam)
         binding.recycleBinToolbar.title = title
         binding.recycleBinToolbar.inflateMenu(R.menu.menu_folder)
-        setupSearch()
+        setupSearch(savedInstanceState?.getString(SEARCH_TEXT).orEmpty())
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
         setupMaterialScrollListener(scrollingView = binding.conversationsList, topAppBar = binding.recycleBinAppbar)
         EventBus.getDefault().register(this)
@@ -69,57 +72,56 @@ class FolderActivity : SimpleActivity() {
         EventBus.getDefault().unregister(this)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(SEARCH_TEXT, folderSearch.text)
+    }
+
     private fun loadFolderConversations() {
         ensureBackgroundThread {
             val loaded = getFolderConversations(folderId).sortedByDescending { it.date }
-            runOnUiThread {
-                conversations = loaded
-                // the messages in the folder may have changed
-                folderTexts = null
-                search(searchText)
-            }
+            runOnUiThread { folderSearch.setConversations(loaded) }
         }
     }
 
-    private fun setupSearch() {
-        (searchItem.actionView as SearchView).apply {
+    // [restoredText] is the search that was open before the screen was recreated, for example by rotating the phone.
+    private fun setupSearch(restoredText: String) {
+        onBackPressedDispatcher.addCallback(this, closeSearch)
+        searchItem.setOnActionExpandListener(object : MenuItem.OnActionExpandListener {
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+                closeSearch.isEnabled = true
+                return true
+            }
+
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+                closeSearch.isEnabled = false
+                folderSearch.search("")
+                return true
+            }
+        })
+        val searchView = searchItem.actionView as SearchView
+        searchView.apply {
             queryHint = getString(R.string.search_in_folder, title)
             maxWidth = Int.MAX_VALUE
             setOnQueryTextListener(object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(query: String) = false
 
                 override fun onQueryTextChange(newText: String): Boolean {
-                    search(newText)
+                    folderSearch.search(newText)
                     return true
                 }
             })
         }
-    }
-
-    // Shows the conversations that match [text], or all of them when it is empty. The folder's message texts are read
-    // once per search, off the main thread.
-    private fun search(text: String) {
-        searchText = text
-        if (text.isBlank()) {
-            show(conversations, emptyMap())
-            return
-        }
-
-        val all = conversations
-        ensureBackgroundThread {
-            val texts = folderTexts ?: getFolderTexts(folderId).also { folderTexts = it }
-            val found = searchFolder(all, texts, text.trim())
-            runOnUiThread {
-                if (searchText == text) {
-                    show(found.map { it.first }, found.mapNotNull { (c, id) -> id?.let { c.threadId to it } }.toMap())
-                }
-            }
+        if (restoredText.isNotEmpty()) {
+            searchItem.expandActionView()
+            searchView.setQuery(restoredText, false)
         }
     }
 
-    private fun show(shown: List<Conversation>, messages: Map<Long, Long>) {
-        foundMessages = messages
-        binding.noConversationsPlaceholder.text = if (searchText.isBlank()) {
+    private fun show(found: List<Pair<Conversation, Long?>>) {
+        val shown = found.map { it.first }
+        foundMessages = found.mapNotNull { (conversation, id) -> id?.let { conversation.threadId to it } }.toMap()
+        binding.noConversationsPlaceholder.text = if (folderSearch.text.isBlank()) {
             getString(R.string.no_messages_in_folder)
         } else {
             getString(org.fossify.commons.R.string.no_items_found)
@@ -152,6 +154,8 @@ class FolderActivity : SimpleActivity() {
     }
 
     companion object {
+        private const val SEARCH_TEXT = "search_text"
+
         fun intent(context: Context, folderId: Long, name: String) = Intent(context, FolderActivity::class.java).apply {
             putExtra(FOLDER_ID, folderId)
             putExtra(FOLDER_NAME, name)
@@ -160,6 +164,7 @@ class FolderActivity : SimpleActivity() {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun refreshConversations(@Suppress("unused") event: Events.RefreshConversations) {
+        folderSearch.messagesChanged()
         loadFolderConversations()
     }
 }
