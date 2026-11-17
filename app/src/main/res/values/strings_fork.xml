@@ -10,6 +10,7 @@
     <string name="checking_messages">Checking the messages on the phone…</string>
     <string name="spam_filter_no_changes">No messages need to change.</string>
     <string name="apply">Apply</string>
+    <string name="apply_without_deleting">Apply, don\'t delete</string>
     <string name="filter_rules">Filter rules</string>
     <string name="add_filter_rule">Add rule</string>
     <string name="edit_filter_rule">Edit rule</string>
@@ -27,6 +28,14 @@
     <string name="filter_run_inbox">Return to the inbox: %d</string>
     <string name="filter_run_archive">Archive conversations: %d</string>
     <string name="filter_run_unarchive">Return conversations from the archive: %d</string>
+    <string name="filter_run_expire">Delete permanently, older than the rule keeps them: %d</string>
+    <string name="filter_run_expire_from_inbox">Of those, now in the inbox: %d</string>
+    <string name="delete_after">Delete after</string>
+    <string name="delete_after_never">Never</string>
+    <string name="delete_after_2_days">2 days</string>
+    <string name="delete_after_1_week">1 week</string>
+    <string name="delete_after_2_weeks">2 weeks</string>
+    <string name="delete_after_1_month">1 month</string>
     <string name="filter_run_matches">Messages matching filters:</string>
     <string name="filter_run_filter">%1$s (%2$d)</string>
     <string name="filter_run_keyword">\"%1$s\": %2$d</string>

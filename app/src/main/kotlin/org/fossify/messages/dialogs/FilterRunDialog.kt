@@ -1,7 +1,9 @@
 package org.fossify.messages.dialogs
 
 import android.app.Activity
-import org.fossify.commons.dialogs.ConfirmationDialog
+import org.fossify.commons.databinding.DialogMessageBinding
+import org.fossify.commons.extensions.getAlertDialogBuilder
+import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.messages.R
@@ -33,20 +35,27 @@ class FilterRunDialog(
                 if (!isCurrent() || activity.isFinishing) {
                     return@runOnUiThread
                 } else if (run.hasChanges) {
-                    ConfirmationDialog(
-                        activity = activity,
-                        message = description,
-                        positive = R.string.apply,
-                        negative = org.fossify.commons.R.string.cancel
-                    ) {
-                        ensureBackgroundThread { activity.applyFilterRun(run) }
-                    }
+                    confirm(run, description)
                 } else if (showIfNoChanges) {
                     activity.toast(R.string.spam_filter_no_changes)
                 }
             }
         }
     }
+
+    // Deleting is permanent, so a run that deletes can also be applied without deleting.
+    private fun confirm(run: FilterRun, description: String) {
+        val view = DialogMessageBinding.inflate(activity.layoutInflater).apply { message.text = description }
+        val builder = activity.getAlertDialogBuilder()
+            .setPositiveButton(R.string.apply) { _, _ -> apply(run) }
+            .setNegativeButton(org.fossify.commons.R.string.cancel, null)
+        if (run.toExpire.isNotEmpty()) {
+            builder.setNeutralButton(R.string.apply_without_deleting) { _, _ -> apply(run.withoutDeleting()) }
+        }
+        activity.setupDialogStuff(view.root, builder)
+    }
+
+    private fun apply(run: FilterRun) = ensureBackgroundThread { activity.applyFilterRun(run) }
 
     // Reads the rules and folder names, so it runs off the main thread.
     private fun describe(run: FilterRun): String = with(activity) {
@@ -55,6 +64,8 @@ class FilterRunDialog(
         listOf(
             R.string.filter_run_move to run.toFolders.size,
             R.string.filter_run_inbox to run.toInbox.size,
+            R.string.filter_run_expire to run.toExpire.size,
+            R.string.filter_run_expire_from_inbox to run.expiringFromInbox,
             R.string.filter_run_archive to run.toArchive.distinctBy { it.threadId }.size,
             R.string.filter_run_unarchive to run.toUnarchive.size
         ).filter { it.second > 0 }.forEach { lines += getString(it.first, it.second) }

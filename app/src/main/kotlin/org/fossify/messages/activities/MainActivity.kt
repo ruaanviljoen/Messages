@@ -73,6 +73,7 @@ import org.fossify.messages.helpers.getFolderNames
 import org.fossify.messages.helpers.isFolderItem
 import org.fossify.messages.helpers.searchMessages
 import org.fossify.messages.helpers.restoreRecycledMessages
+import org.fossify.messages.helpers.deleteExpiredMessagesIfDue
 import org.fossify.messages.helpers.updateFolderMenuItems
 import org.fossify.messages.helpers.withoutSpamOnly
 import org.fossify.messages.helpers.withoutStoredSpamOnly
@@ -119,6 +120,7 @@ class MainActivity : SimpleActivity() {
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
 
         restoreRecycledMessages()
+        ensureBackgroundThread { deleteExpiredMessagesIfDue() }
         clearAllMessagesIfNeeded {
             loadMessages()
         }

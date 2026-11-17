@@ -22,6 +22,7 @@ import org.fossify.messages.extensions.showReceivedMessageNotification
 import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.helpers.MessageFilter
+import org.fossify.messages.helpers.deleteExpiredMessagesIfDue
 import org.fossify.messages.helpers.fileReceivedMessage
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
@@ -67,6 +68,7 @@ class MmsReceiver : MmsReceivedReceiver() {
         size: Int,
         address: String
     ) {
+        context.deleteExpiredMessagesIfDue()
         val filterResult = MessageFilter(context).filter(address, mms.body)
         if (filterResult != null) {
             context.messagesDB.insertOrUpdate(mms)

@@ -54,6 +54,8 @@ class FakeTelephonyProvider : ContentProvider() {
 
     fun isRead(smsId: Long) = query("sms", "read", smsId) == 1L
 
+    fun exists(smsId: Long) = query("sms", "_id", smsId) != null
+
     fun isArchived(threadId: Long) = query("threads", "archived", threadId) == 1L
 
     private fun query(table: String, column: String, id: Long) =

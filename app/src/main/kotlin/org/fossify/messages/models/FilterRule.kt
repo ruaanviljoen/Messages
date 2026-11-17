@@ -10,7 +10,9 @@ import org.fossify.messages.helpers.SPAM_ACTION_MOVE
  * A filter rule: messages from [sender] that contain any of the [keywords] (one per line) are moved to the folder
  * [folderId]. The Spam rule can archive their conversations instead, when [action] says so. Either part may be empty,
  * but not both. Messages from saved contacts are left alone unless [applyToContacts], which is on by default; the
- * Spam rule starts with it off, so that saved contacts are not treated as spam.
+ * Spam rule starts with it off, so that saved contacts are not treated as spam. Messages the rule files are deleted
+ * once they are older than [deleteAfterDays], unless it is 0. See [org.fossify.messages.helpers.deleteExpiredMessages]
+ * for when that happens without asking.
  *
  * The Spam rule ([isSpam]) is pinned: it runs first, its folder is Spam, and it cannot be moved or deleted. The other
  * rules run after it in [position] order, and the first rule that matches wins.
@@ -25,7 +27,8 @@ data class FilterRule(
     @ColumnInfo(name = "notify") val notify: Boolean = false,
     @ColumnInfo(name = "action", defaultValue = "0") val action: Int = SPAM_ACTION_MOVE,
     @ColumnInfo(name = "is_spam", defaultValue = "0") val isSpam: Boolean = false,
-    @ColumnInfo(name = "apply_to_contacts", defaultValue = "1") val applyToContacts: Boolean = true
+    @ColumnInfo(name = "apply_to_contacts", defaultValue = "1") val applyToContacts: Boolean = true,
+    @ColumnInfo(name = "delete_after_days", defaultValue = "0") val deleteAfterDays: Int = 0
 ) {
     fun keywordList() = keywords.lines().map { it.trim() }.filter { it.isNotEmpty() }
 

@@ -9,7 +9,9 @@ import org.fossify.commons.extensions.getLongValue
 import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
 import org.fossify.messages.extensions.conversationsDB
+import org.fossify.messages.extensions.deleteMessage
 import org.fossify.messages.extensions.getMMSSender
+import org.fossify.messages.extensions.updateLastConversationMessage
 import org.fossify.messages.models.FilteredMessage
 import org.fossify.messages.models.SPAM_FOLDER_ID
 
@@ -29,22 +31,36 @@ class FilterMatches {
 
 /**
  * What running the filters over the received messages on the phone would change: messages moving to a folder (Spam or
- * a rule's folder) or back to the inbox, and messages whose conversations the Spam rule archives. [unmatchedArchived]
- * are the conversations it archived earlier that it no longer matches, by thread id, and [toUnarchive] those of them
- * that are still archived. Of the messages that change, [ruleMatches] counts what each rule takes, by rule id; the
- * Spam rule is one of them.
+ * a rule's folder) or back to the inbox, messages deleted because they are older than their rule keeps them
+ * ([toExpire]), and messages whose conversations the Spam rule archives. [unmatchedArchived] are the conversations it
+ * archived earlier that it no longer matches, by thread id, and [toUnarchive] those of them that are still archived.
+ * Of the messages that change, [ruleMatches] counts what each rule takes, by rule id; the Spam rule is one of them.
  */
 data class FilterRun(
     val toFolders: List<FilteredMessage>,
     val toInbox: List<FilteredMessage>,
     val toArchive: List<FilteredMessage>,
+    val toExpire: List<FilteredMessage>,
     val unmatchedArchived: Set<Long>,
     val toUnarchive: Set<Long>,
     val stale: List<FilteredMessage>,
-    val ruleMatches: Map<Long, FilterMatches>
+    val ruleMatches: Map<Long, FilterMatches>,
+    private val filedBefore: Map<Pair<Long, Boolean>, FilteredMessage> = emptyMap()
 ) {
     val hasChanges get() = toFolders.isNotEmpty() || toInbox.isNotEmpty() || toArchive.isNotEmpty() ||
-        toUnarchive.isNotEmpty()
+        toExpire.isNotEmpty() || toUnarchive.isNotEmpty()
+
+    // the folder a message is in before the run, or null for the inbox
+    private fun folderBefore(message: FilteredMessage) =
+        filedBefore[message.id to message.isMMS]?.takeIf { it.date == message.date }?.folderId
+
+    val expiringFromInbox get() = toExpire.count { folderBefore(it) == null }
+
+    /** This run without its deletions: the messages it would delete are filed to their rule's folder instead. */
+    fun withoutDeleting() = copy(
+        toFolders = toFolders + toExpire.filter { folderBefore(it) != it.folderId },
+        toExpire = emptyList()
+    )
 }
 
 /**
@@ -58,18 +74,16 @@ fun Context.planFilterRun(): FilterRun {
     val toFolders = ArrayList<FilteredMessage>()
     val toInbox = ArrayList<FilteredMessage>()
     val toArchive = ArrayList<FilteredMessage>()
+    val toExpire = ArrayList<FilteredMessage>()
     val archived = conversationsDB.getAllArchived().mapTo(HashSet()) { it.threadId }
     val archivedBySpam = getSpamArchivedThreads()
     val spamThreads = HashSet<Long>()
     val stale = ArrayList<FilteredMessage>()
     val ruleMatches = HashMap<Long, FilterMatches>()
 
+    val filedBefore = entries.filterValues { !it.restored }
     forEachReceivedMessage { message, address, body ->
-        val stored = entries.remove(message.id to message.isMMS)
-        val entry = stored?.takeIf { it.date == message.date }
-        if (stored != null && entry == null) {
-            stale += stored
-        }
+        val entry = entries.takeEntry(message, stale)
 
         if (entry?.restored == true) {
             return@forEachReceivedMessage
@@ -89,6 +103,7 @@ fun Context.planFilterRun(): FilterRun {
                 }
             }
 
+            result.rule.expired(message.date) -> toExpire += message.copy(folderId = result.folderId)
             entry?.folderId != result.folderId -> toFolders += message.copy(folderId = result.folderId)
             else -> return@forEachReceivedMessage // already in its folder
         }
@@ -102,7 +117,22 @@ fun Context.planFilterRun(): FilterRun {
     // conversations the Spam rule archived that it no longer matches; the user may have unarchived some already
     val unmatchedArchived = archivedBySpam - spamThreads
     val toUnarchive = unmatchedArchived.filterTo(HashSet()) { it in archived }
-    return FilterRun(toFolders, toInbox, toArchive, unmatchedArchived, toUnarchive, stale, ruleMatches)
+    return FilterRun(
+        toFolders, toInbox, toArchive, toExpire, unmatchedArchived, toUnarchive, stale, ruleMatches, filedBefore
+    )
+}
+
+// Removes and returns the folder entry of [message]. An entry whose id now belongs to another message is stale.
+private fun MutableMap<Pair<Long, Boolean>, FilteredMessage>.takeEntry(
+    message: FilteredMessage,
+    stale: MutableList<FilteredMessage>
+): FilteredMessage? {
+    val stored = remove(message.id to message.isMMS) ?: return null
+    if (stored.date != message.date) {
+        stale += stored
+        return null
+    }
+    return stored
 }
 
 /** Applies a run worked out by [planFilterRun]. Run it off the main thread. */
@@ -114,6 +144,11 @@ fun Context.applyFilterRun(run: FilterRun) {
     (run.stale + run.toInbox + archivedMessages).forEach { filteredDB.delete(it.id, it.isMMS) }
     filteredDB.insertAll(run.toFolders + toSpam.map { it.copy(folderId = SPAM_FOLDER_ID, restored = false) })
     unarchiveSpamConversations(run.toUnarchive, forget = run.unmatchedArchived)
+    run.toExpire.forEach { deleteMessage(it.id, it.isMMS) }
+    if (run.toExpire.isNotEmpty()) {
+        updateLastConversationMessage(run.toExpire.map { it.threadId }.distinct())
+        filterRulesDB.deleteUnusedFolders()
+    }
     refreshMessages()
     refreshConversations()
 }

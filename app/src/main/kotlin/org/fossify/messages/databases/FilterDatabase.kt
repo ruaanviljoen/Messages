@@ -21,7 +21,7 @@ import org.fossify.messages.models.SpamThread
  */
 @Database(
     entities = [FilteredMessage::class, SpamThread::class, FilterFolder::class, FilterRule::class],
-    version = 4
+    version = 5
 )
 abstract class FilterDatabase : RoomDatabase() {
 
@@ -38,7 +38,7 @@ abstract class FilterDatabase : RoomDatabase() {
         fun getInstance(context: Context): FilterDatabase {
             return db ?: synchronized(FilterDatabase::class) {
                 db ?: Room.databaseBuilder(context.applicationContext, FilterDatabase::class.java, "spam.db")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { db = it }
             }
@@ -76,6 +76,13 @@ abstract class FilterDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `is_spam` INTEGER NOT NULL DEFAULT 0")
                 // existing rules applied to everyone, so they keep applying to saved contacts
                 db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `apply_to_contacts` INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        // Rules can delete the messages they file after some days; existing rules keep them.
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `filter_rules` ADD COLUMN `delete_after_days` INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

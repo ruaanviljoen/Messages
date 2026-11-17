@@ -15,6 +15,7 @@ import org.fossify.messages.dialogs.FilterRuleDialog
 import org.fossify.messages.dialogs.FilterRunDialog
 import org.fossify.messages.helpers.filterRulesDB
 import org.fossify.messages.helpers.getFolderNames
+import org.fossify.messages.helpers.markFiltersChanged
 import org.fossify.messages.models.FilterRule
 
 /** The filter rules, which run after Spam in the order shown. It reuses the layout of the keyword list. */
@@ -97,6 +98,7 @@ class FilterRulesActivity : SimpleActivity() {
     private fun saveOrder(rules: List<FilterRule>) {
         ensureBackgroundThread {
             filterRulesDB.updateRules(rules)
+            markFiltersChanged()
             runOnUiThread { offerFilterRun() }
         }
     }

@@ -15,6 +15,7 @@ import org.fossify.messages.dialogs.FilterRunDialog
 import org.fossify.messages.extensions.config
 import org.fossify.messages.helpers.addContactPicker
 import org.fossify.messages.helpers.getSpamRule
+import org.fossify.messages.helpers.markFiltersChanged
 
 // The "Filters" section of the settings: the Spam rule, its exempt numbers, the other rules and running the filters.
 
@@ -65,6 +66,7 @@ private fun SimpleActivity.editSpamExemptNumbers() {
         .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->
             config.spamExemptNumbers = dialogBinding.addBlockedKeywordEdittext.value
                 .split('\n', ',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            markFiltersChanged()
             offerFilterRun()
         }
         .setNegativeButton(org.fossify.commons.R.string.cancel, null)
