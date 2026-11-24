@@ -6,10 +6,11 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 
 Each feature is developed on its own branch. Before work starts on another feature or issue, every branch listed here gets a decision: merge it into the work branch, or drop it. Then it is removed from this list.
 
-- `feat/unread-chip`: keep only the "Unread" filter chip above the inbox; with it off, everything is shown. Decision: pending.
+None at the moment.
 
 ## Fixed, waiting for testing on the phone
 
+- Only the "Unread" filter chip is left above the inbox; with it off, every conversation shows.
 - A folder's screen has the same search bar and results as the inbox, limited to that folder. Both use one shared search component.
 - Each rule has "Delete after" (never, 2 days, 1 week, 2 weeks, 1 month). Running the filters shows how many messages it would delete permanently, including how many are in the inbox, and offers "Apply, don't delete". After any change to the rules, the background check (at most every 6 hours, on app start or when a message arrives) deletes only messages that become too old after that change; older ones need a confirmed run. Messages restored to the inbox are never deleted.
 - Search results have "Conversations" and "Messages" headings. The selection bar says "2 messages selected" in search and "2 conversations selected" in the conversation lists, and the search menu can archive the selected messages' conversations.
@@ -44,6 +45,10 @@ Agreed design:
 - Under the hood the Spam table becomes a general "message to folder" table, with Spam as a built-in folder. Existing Spam entries are kept.
 
 Build order: rules engine and storage; folders in the main menu and folder views; rules screen; Spam filter section in Settings; then export and import of the whole setup.
+
+## Proposal: folders as filter chips above the inbox
+
+A row of filter chips under the search bar: All (default), Unread, then one chip per folder that has a rule, scrolling sideways when full. Tapping a folder shows its conversations in the same list, and the search bar then searches that folder. A dot marks folders with unread messages. Spam stays in the menu. Mockups and the alternatives (tabs with counts, three folders and More) are in the design page shared in the chat. Not decided yet.
 
 ## Later: folder and notification details
 
