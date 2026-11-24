@@ -6,6 +6,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beInvisibleIf
@@ -32,7 +33,7 @@ class FilterRulesAdapter(
     private val onReordered: (List<FilterRule>) -> Unit,
     itemClick: (Any) -> Unit
 ) : MyRecyclerViewAdapter(activity, recyclerView, itemClick), ItemTouchHelperContract {
-    private val touchHelper = ItemTouchHelper(ItemMoveCallback(this)).apply { attachToRecyclerView(recyclerView) }
+    private val touchHelper = ItemTouchHelper(RuleMoveCallback()).apply { attachToRecyclerView(recyclerView) }
     private var moved = false
 
     /** Stops handling drags, before this adapter is replaced. */
@@ -107,5 +108,14 @@ class FilterRulesAdapter(
             rules.indices.forEach { rules[it] = rules[it].copy(position = it) }
             onReordered(rules.filterNot { it.isSpam })
         }
+    }
+
+    // No rule can be dropped onto the pinned Spam row.
+    private inner class RuleMoveCallback : ItemMoveCallback(this@FilterRulesAdapter) {
+        override fun canDropOver(
+            recyclerView: RecyclerView,
+            current: RecyclerView.ViewHolder,
+            target: RecyclerView.ViewHolder
+        ) = rules.getOrNull(target.bindingAdapterPosition)?.isSpam != true
     }
 }

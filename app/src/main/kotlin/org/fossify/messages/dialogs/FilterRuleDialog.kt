@@ -211,8 +211,8 @@ class FilterRuleDialog(
                     isSpam = isSpam,
                     applyToContacts = binding.filterRuleApplyToContacts.isChecked,
                     deleteAfterDays = if (archives) 0 else deleteAfterDays,
-                    exemptSenders = binding.filterRuleExempt.value.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                        .joinToString("\n")
+                    exemptSenders = binding.filterRuleExempt.value.split('\n', ',').map { it.trim() }
+                        .filter { it.isNotEmpty() }.joinToString("\n")
                 )
             )
             activity.markFiltersChanged()

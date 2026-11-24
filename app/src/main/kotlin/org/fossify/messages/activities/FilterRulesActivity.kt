@@ -1,9 +1,7 @@
 package org.fossify.messages.activities
 
 import android.os.Bundle
-import org.fossify.commons.extensions.beVisibleIf
-import org.fossify.commons.extensions.getProperPrimaryColor
-import org.fossify.commons.extensions.underlineText
+import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.updateTextColors
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
@@ -40,13 +38,9 @@ class FilterRulesActivity : SimpleActivity() {
         )
         updateTextColors(binding.manageBlockedKeywordsWrapper)
 
-        binding.manageBlockedKeywordsPlaceholder.text = getString(R.string.no_filter_rules)
-        binding.manageBlockedKeywordsPlaceholder2.apply {
-            text = getString(R.string.add_filter_rule)
-            underlineText()
-            setTextColor(getProperPrimaryColor())
-            setOnClickListener { editRule() }
-        }
+        // the list always holds the Spam rule, so the empty-list hint of the reused layout is never shown
+        binding.manageBlockedKeywordsPlaceholder.beGone()
+        binding.manageBlockedKeywordsPlaceholder2.beGone()
         loadRules()
     }
 
@@ -86,8 +80,6 @@ class FilterRulesActivity : SimpleActivity() {
                     recyclerView = binding.manageBlockedKeywordsList,
                     onReordered = { saveOrder(it) }
                 ) { editRule(it as FilterRule) }
-                binding.manageBlockedKeywordsPlaceholder.beVisibleIf(rules.none { !it.isSpam })
-                binding.manageBlockedKeywordsPlaceholder2.beVisibleIf(rules.none { !it.isSpam })
             }
         }
     }
