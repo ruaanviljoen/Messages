@@ -12,6 +12,7 @@
     <string name="apply_without_deleting">Apply, don\'t delete</string>
     <string name="filter_rules">Filter rules</string>
     <string name="add_filter_rule">Add rule</string>
+    <string name="no_filter_rules">No other rules yet. A rule moves messages from a sender, or with certain words, to a folder of your choice.</string>
     <string name="edit_filter_rule">Edit rule</string>
     <string name="filter_rule_sender">Sender (number or name, optional)</string>
     <string name="filter_rule_keywords">Keywords, one per line (optional)</string>

@@ -11,17 +11,20 @@ import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beInvisibleIf
 import org.fossify.commons.extensions.setupViewBackground
+import org.fossify.commons.extensions.underlineText
 import org.fossify.commons.interfaces.ItemMoveCallback
 import org.fossify.commons.interfaces.ItemTouchHelperContract
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.messages.activities.SimpleActivity
 import org.fossify.messages.databinding.ItemFilterRuleBinding
+import org.fossify.messages.databinding.ItemFilterRulesHintBinding
 import org.fossify.messages.models.FilterRule
 import java.util.Collections
 
 /**
  * The filter rules in the order they run. Tapping a rule edits it; its handle drags it to another place. The Spam rule
- * is pinned first: it has no handle, and no rule can be dragged above it.
+ * is pinned first: it has no handle, and no rule can be dragged above it. While Spam is the only rule, a hint under it
+ * explains rules and offers [onAddRule].
  */
 // Most functions are overrides that MyRecyclerViewAdapter and ItemTouchHelperContract require.
 @Suppress("TooManyFunctions")
@@ -31,10 +34,12 @@ class FilterRulesAdapter(
     private val folderNames: Map<Long, String>,
     recyclerView: MyRecyclerView,
     private val onReordered: (List<FilterRule>) -> Unit,
+    private val onAddRule: () -> Unit,
     itemClick: (Any) -> Unit
 ) : MyRecyclerViewAdapter(activity, recyclerView, itemClick), ItemTouchHelperContract {
     private val touchHelper = ItemTouchHelper(RuleMoveCallback()).apply { attachToRecyclerView(recyclerView) }
     private var moved = false
+    private val showHint = rules.all { it.isSpam }
 
     /** Stops handling drags, before this adapter is replaced. */
     fun detach() = touchHelper.attachToRecyclerView(null)
@@ -57,14 +62,26 @@ class FilterRulesAdapter(
 
     override fun onActionModeDestroyed() = Unit
 
-    override fun getItemCount() = rules.size
+    override fun getItemCount() = rules.size + if (showHint) 1 else 0
+
+    override fun getItemViewType(position: Int) = if (position < rules.size) RULE else HINT
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        return createViewHolder(ItemFilterRuleBinding.inflate(layoutInflater, parent, false).root)
+        val view = if (viewType == HINT) {
+            ItemFilterRulesHintBinding.inflate(layoutInflater, parent, false).apply {
+                filterRulesHint.setTextColor(textColor)
+                filterRulesAdd.setTextColor(properPrimaryColor)
+                filterRulesAdd.underlineText()
+                filterRulesAdd.setOnClickListener { onAddRule() }
+            }.root
+        } else {
+            ItemFilterRuleBinding.inflate(layoutInflater, parent, false).root
+        }
+        return createViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val rule = rules[position]
+        val rule = rules.getOrNull(position) ?: return
         holder.bindView(rule, allowSingleClick = true, allowLongClick = false) { itemView, _ ->
             setupView(itemView, rule, holder)
         }
@@ -110,12 +127,17 @@ class FilterRulesAdapter(
         }
     }
 
-    // No rule can be dropped onto the pinned Spam row.
+    // A rule can only be dropped onto another of the user's rules, not onto Spam or the hint.
     private inner class RuleMoveCallback : ItemMoveCallback(this@FilterRulesAdapter) {
         override fun canDropOver(
             recyclerView: RecyclerView,
             current: RecyclerView.ViewHolder,
             target: RecyclerView.ViewHolder
-        ) = rules.getOrNull(target.bindingAdapterPosition)?.isSpam != true
+        ) = rules.getOrNull(target.bindingAdapterPosition)?.isSpam == false
+    }
+
+    private companion object {
+        const val RULE = 0
+        const val HINT = 1
     }
 }

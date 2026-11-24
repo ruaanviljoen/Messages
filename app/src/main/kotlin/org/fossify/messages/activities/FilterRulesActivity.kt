@@ -38,7 +38,7 @@ class FilterRulesActivity : SimpleActivity() {
         )
         updateTextColors(binding.manageBlockedKeywordsWrapper)
 
-        // the list always holds the Spam rule, so the empty-list hint of the reused layout is never shown
+        // the list always holds the Spam rule, so the reused layout's empty-list hint is replaced by one in the list
         binding.manageBlockedKeywordsPlaceholder.beGone()
         binding.manageBlockedKeywordsPlaceholder2.beGone()
         loadRules()
@@ -78,7 +78,8 @@ class FilterRulesActivity : SimpleActivity() {
                     rules = rules,
                     folderNames = folderNames,
                     recyclerView = binding.manageBlockedKeywordsList,
-                    onReordered = { saveOrder(it) }
+                    onReordered = { saveOrder(it) },
+                    onAddRule = { editRule() }
                 ) { editRule(it as FilterRule) }
             }
         }
