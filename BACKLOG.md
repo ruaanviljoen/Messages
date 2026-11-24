@@ -6,7 +6,7 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 
 Each feature is developed on its own branch. Before work starts on another feature or issue, every branch listed here gets a decision: merge it into the work branch, or drop it. Then it is removed from this list.
 
-None at the moment.
+- `feat/spam-in-rules`: the Spam rule moves into the Filter rules list, pinned first and not deletable; "Never apply to" numbers become a field on every rule, and the existing Spam exemptions move into the Spam rule. Settings keeps "Filter rules" and "Run filters on existing messages". Decision: pending.
 
 ## Fixed, waiting for testing on the phone
 
