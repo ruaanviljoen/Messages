@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.ItemTouchHelper
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.commons.extensions.applyColorFilter
+import org.fossify.commons.extensions.beInvisibleIf
 import org.fossify.commons.extensions.setupViewBackground
 import org.fossify.commons.interfaces.ItemMoveCallback
 import org.fossify.commons.interfaces.ItemTouchHelperContract
@@ -17,7 +18,10 @@ import org.fossify.messages.databinding.ItemFilterRuleBinding
 import org.fossify.messages.models.FilterRule
 import java.util.Collections
 
-/** The filter rules in the order they run. Tapping a rule edits it; its handle drags it to another place. */
+/**
+ * The filter rules in the order they run. Tapping a rule edits it; its handle drags it to another place. The Spam rule
+ * is pinned first: it has no handle, and no rule can be dragged above it.
+ */
 // Most functions are overrides that MyRecyclerViewAdapter and ItemTouchHelperContract require.
 @Suppress("TooManyFunctions")
 class FilterRulesAdapter(
@@ -75,6 +79,7 @@ class FilterRulesAdapter(
             filterRuleDescription.text = rule.describe()
             filterRuleDescription.setTextColor(textColor)
             filterRuleDragHandle.applyColorFilter(textColor)
+            filterRuleDragHandle.beInvisibleIf(rule.isSpam)
             filterRuleDragHandle.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_DOWN) {
                     touchHelper.startDrag(holder)
@@ -85,6 +90,9 @@ class FilterRulesAdapter(
     }
 
     override fun onRowMoved(fromPosition: Int, toPosition: Int) {
+        if (rules[fromPosition].isSpam || rules[toPosition].isSpam) {
+            return
+        }
         Collections.swap(rules, fromPosition, toPosition)
         notifyItemMoved(fromPosition, toPosition)
         moved = true
@@ -97,7 +105,7 @@ class FilterRulesAdapter(
         if (moved) {
             moved = false
             rules.indices.forEach { rules[it] = rules[it].copy(position = it) }
-            onReordered(rules.toList())
+            onReordered(rules.filterNot { it.isSpam })
         }
     }
 }

@@ -15,10 +15,14 @@ import org.fossify.messages.dialogs.FilterRuleDialog
 import org.fossify.messages.dialogs.FilterRunDialog
 import org.fossify.messages.helpers.filterRulesDB
 import org.fossify.messages.helpers.getFolderNames
+import org.fossify.messages.helpers.getSpamRule
 import org.fossify.messages.helpers.markFiltersChanged
 import org.fossify.messages.models.FilterRule
 
-/** The filter rules, which run after Spam in the order shown. It reuses the layout of the keyword list. */
+/**
+ * The filter rules in the order they run: Spam pinned first, then the user's own. It reuses the layout of the keyword
+ * list.
+ */
 class FilterRulesActivity : SimpleActivity() {
     private val binding by viewBinding(ActivityManageBlockedKeywordsBinding::inflate)
 
@@ -69,8 +73,9 @@ class FilterRulesActivity : SimpleActivity() {
 
     private fun loadRules() {
         ensureBackgroundThread {
-            // the Spam rule is pinned and edited from the settings
-            val rules = ArrayList(filterRulesDB.getRules().filterNot { it.isSpam })
+            // getSpamRule creates the Spam rule if it does not exist yet; getRules lists it first
+            getSpamRule()
+            val rules = ArrayList(filterRulesDB.getRules())
             val folderNames = getFolderNames()
             runOnUiThread {
                 (binding.manageBlockedKeywordsList.adapter as? FilterRulesAdapter)?.detach()
@@ -81,8 +86,8 @@ class FilterRulesActivity : SimpleActivity() {
                     recyclerView = binding.manageBlockedKeywordsList,
                     onReordered = { saveOrder(it) }
                 ) { editRule(it as FilterRule) }
-                binding.manageBlockedKeywordsPlaceholder.beVisibleIf(rules.isEmpty())
-                binding.manageBlockedKeywordsPlaceholder2.beVisibleIf(rules.isEmpty())
+                binding.manageBlockedKeywordsPlaceholder.beVisibleIf(rules.none { !it.isSpam })
+                binding.manageBlockedKeywordsPlaceholder2.beVisibleIf(rules.none { !it.isSpam })
             }
         }
     }

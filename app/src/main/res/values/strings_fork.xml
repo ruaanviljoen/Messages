@@ -6,8 +6,6 @@
     <string name="search_in_folder">Search in %s</string>
     <string name="filters">Filters</string>
     <string name="run_filters">Run filters on existing messages</string>
-    <string name="spam_exempt_numbers">Numbers never treated as spam</string>
-    <string name="spam_exempt_numbers_hint">One number per line</string>
     <string name="checking_messages">Checking the messages on the phone…</string>
     <string name="spam_filter_no_changes">No messages need to change.</string>
     <string name="apply">Apply</string>
@@ -19,6 +17,7 @@
     <string name="filter_rule_sender">Sender (number or name, optional)</string>
     <string name="filter_rule_keywords">Keywords, one per line (optional)</string>
     <string name="filter_rule_notify">Show notifications</string>
+    <string name="filter_rule_exempt">Never apply to (number or name, one per line)</string>
     <string name="filter_rule_needs_folder">Choose an action</string>
     <string name="filter_rule_needs_sender_or_keyword">Enter a sender or at least one keyword</string>
     <string name="new_folder">New folder</string>
