@@ -81,7 +81,7 @@ class MainActivity : SimpleActivity() {
     private var storedFontSize = 0
     private val searchPanel by lazy { MessageSearchPanel(this, binding.mainMenu, binding.searchHolder) }
 
-    // The "Unread" and "Read" chips under the search bar narrow the conversation list.
+    // The "Unread" chip under the search bar narrows the conversation list.
     private var lastConversations = ArrayList<Conversation>()
     private var lastConversationsCached = false
     private val readFilter by lazy {
