@@ -13,7 +13,7 @@ private const val CHECKED_ALPHA = 0.3f
 private const val STROKE_ALPHA = 0.5f
 
 /**
- * The "Unread" and "Read" chips under the search bar. At most one is checked; with none, every conversation shows.
+ * The filter chips under the search bar. For now there is one, "Unread"; when it is off, every conversation shows.
  * [onChanged] runs when the choice changes.
  */
 class ReadFilterChips(private val group: ChipGroup, onChanged: () -> Unit) {
@@ -24,7 +24,6 @@ class ReadFilterChips(private val group: ChipGroup, onChanged: () -> Unit) {
 
     fun apply(conversations: List<Conversation>) = when (group.checkedChipId) {
         R.id.read_filter_unread -> conversations.filter { !it.read }
-        R.id.read_filter_read -> conversations.filter { it.read }
         else -> conversations
     }
 
