@@ -3,6 +3,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="spam">Spam</string>
     <string name="no_messages_in_folder">No messages in this folder</string>
+    <string name="search_in_folder">Search in %s</string>
     <string name="filters">Filters</string>
     <string name="run_filters">Run filters on existing messages</string>
     <string name="spam_exempt_numbers">Numbers never treated as spam</string>

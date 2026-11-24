@@ -9,6 +9,7 @@ import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
 import org.fossify.commons.models.PhoneNumber
 import org.fossify.commons.models.SimpleContact
+import org.fossify.messages.extensions.conversationsDB
 import org.fossify.messages.extensions.deleteMessage
 import org.fossify.messages.extensions.deleteScheduledMessage
 import org.fossify.messages.extensions.getMMSSender
@@ -16,6 +17,7 @@ import org.fossify.messages.extensions.getNameAndPhotoFromPhoneNumber
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.extensions.updateLastConversationMessage
 import org.fossify.messages.messaging.cancelScheduleSendPendingIntent
+import org.fossify.messages.models.Conversation
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.NamePhoto
 
@@ -138,4 +140,40 @@ fun Context.deleteMessagesFromSearch(messages: List<Message>) {
     updateLastConversationMessage(messages.map { it.threadId }.distinct())
     refreshMessages()
     refreshConversations()
+}
+
+/**
+ * What a search finds: the matching messages, the conversations whose name matches, the folder of each found message
+ * that is in a folder, by message id and type, and the folders' names.
+ */
+class SearchFindings(
+    val messages: List<Message>,
+    val conversations: List<Conversation>,
+    val folders: Map<Pair<Long, Boolean>, Long>,
+    val folderNames: Map<Long, String>
+)
+
+/**
+ * Searches all messages, or with [folderId] only those in that folder and the conversations with messages there. A
+ * search in a folder leaves out the folder names, since every result is in it. Run it off the main thread.
+ */
+fun Context.findForSearch(text: String, folderId: Long?): SearchFindings {
+    val messages = searchMessages(text)
+    val conversations = conversationsDB.getConversationsWithText("%$text%")
+    val filed = filteredDB.getFiled().associateBy { it.id to it.isMMS }
+    val folders = messages.mapNotNull { message ->
+        val entry = filed[message.id to message.isMMS]?.takeIf { it.date == message.date }
+        entry?.let { (message.id to message.isMMS) to it.folderId }
+    }.toMap()
+    if (folderId == null) {
+        return SearchFindings(messages, conversations, folders, getFolderNames())
+    }
+
+    val threads = filteredDB.getFolder(folderId).mapTo(HashSet()) { it.threadId }
+    return SearchFindings(
+        messages = messages.filter { folders[it.id to it.isMMS] == folderId },
+        conversations = conversations.filter { it.threadId in threads },
+        folders = folders,
+        folderNames = emptyMap()
+    )
 }

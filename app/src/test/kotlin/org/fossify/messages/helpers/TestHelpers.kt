@@ -32,9 +32,9 @@ internal fun resetDatabases() {
  * Adds a conversation to the app's cached list, as loading the inbox does. The fake message store cannot produce
  * conversations itself.
  */
-internal fun Context.cacheConversation(threadId: Long, archived: Boolean = false) {
+internal fun Context.cacheConversation(threadId: Long, archived: Boolean = false, title: String = "") {
     val conversation = Conversation(
-        threadId = threadId, snippet = "", date = 1_000, read = true, title = "", photoUri = "",
+        threadId = threadId, snippet = "", date = 1_000, read = true, title = title, photoUri = "",
         isGroupConversation = false, phoneNumber = "", isArchived = archived
     )
     conversationsDB.insertOrUpdate(conversation)

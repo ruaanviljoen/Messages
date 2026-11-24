@@ -6,12 +6,14 @@ import android.content.Intent
 import android.os.Bundle
 import org.fossify.commons.extensions.beGoneIf
 import org.fossify.commons.extensions.beVisibleIf
+import org.fossify.commons.extensions.getProperPrimaryColor
+import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.extensions.updateTextColors
 import org.fossify.commons.extensions.viewBinding
-import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.messages.R
 import org.fossify.messages.adapters.FolderConversationsAdapter
-import org.fossify.messages.databinding.ActivityRecycleBinConversationsBinding
+import org.fossify.messages.databinding.ActivityFolderBinding
 import org.fossify.messages.helpers.FOLDER_ID
 import org.fossify.messages.helpers.FOLDER_NAME
 import org.fossify.messages.helpers.THREAD_ID
@@ -25,26 +27,39 @@ import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 
 /**
- * A folder (Spam or a rule's folder): the conversations that have messages in it. It works like the recycle bin, with
- * the same layout.
+ * A folder (Spam or a rule's folder): the conversations that have messages in it. Its search bar and results are the
+ * inbox's ([MessageSearchPanel]), limited to the folder.
  */
 class FolderActivity : SimpleActivity() {
-    private val binding by viewBinding(ActivityRecycleBinConversationsBinding::inflate)
+    override var isSearchBarEnabled = true
+
+    private val binding by viewBinding(ActivityFolderBinding::inflate)
     private val folderId by lazy { intent.getLongExtra(FOLDER_ID, SPAM_FOLDER_ID) }
+    private val searchPanel by lazy { MessageSearchPanel(this, binding.folderMenu, binding.searchHolder, folderId) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        title = intent.getStringExtra(FOLDER_NAME) ?: getString(R.string.spam)
-        binding.recycleBinToolbar.title = title
+        val name = intent.getStringExtra(FOLDER_NAME) ?: getString(R.string.spam)
+        title = name
+        binding.folderMenu.apply {
+            updateHintText(getString(R.string.search_in_folder, name))
+            toggleForceArrowBackIcon(true)
+            onNavigateBackClickListener = { onBackPressedDispatcher.onBackPressed() }
+            setupMenu()
+        }
+        searchPanel.setup()
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
-        setupMaterialScrollListener(scrollingView = binding.conversationsList, topAppBar = binding.recycleBinAppbar)
+        setupMaterialScrollListener(scrollingView = binding.conversationsList, topAppBar = binding.folderMenu)
         EventBus.getDefault().register(this)
     }
 
     override fun onResume() {
         super.onResume()
-        setupTopAppBar(binding.recycleBinAppbar, NavigationIcon.Arrow)
+        binding.folderMenu.updateColors()
+        updateTextColors(binding.folderCoordinator)
+        searchPanel.updateColors()
+        binding.conversationsFastscroller.updateColors(getProperPrimaryColor())
         loadFolderConversations()
     }
 
@@ -53,11 +68,25 @@ class FolderActivity : SimpleActivity() {
         EventBus.getDefault().unregister(this)
     }
 
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        searchPanel.restore()
+    }
+
+    override fun onBackPressedCompat(): Boolean {
+        return if (binding.folderMenu.isSearchOpen) {
+            binding.folderMenu.closeSearch()
+            true
+        } else {
+            false
+        }
+    }
+
     private fun loadFolderConversations() {
         ensureBackgroundThread {
             val conversations = getFolderConversations(folderId).sortedByDescending { it.date }
             runOnUiThread {
-                binding.noConversationsPlaceholder.text = getString(R.string.no_messages_in_folder)
+                binding.noConversationsPlaceholder.setTextColor(getProperTextColor())
                 binding.noConversationsPlaceholder.beVisibleIf(conversations.isEmpty())
                 binding.conversationsFastscroller.beGoneIf(conversations.isEmpty())
                 getOrCreateAdapter().updateConversations(ArrayList(conversations))
@@ -65,20 +94,16 @@ class FolderActivity : SimpleActivity() {
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private fun getOrCreateAdapter(): FolderConversationsAdapter {
         return binding.conversationsList.adapter as? FolderConversationsAdapter
             ?: FolderConversationsAdapter(
                 activity = this,
                 folderId = folderId,
                 recyclerView = binding.conversationsList,
-                onRefresh = { notifyDatasetChanged() },
+                onRefresh = { getOrCreateAdapter().notifyDataSetChanged() },
                 itemClick = { openConversation(it as Conversation) }
             ).also { binding.conversationsList.adapter = it }
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    private fun notifyDatasetChanged() {
-        getOrCreateAdapter().notifyDataSetChanged()
     }
 
     private fun openConversation(conversation: Conversation) {

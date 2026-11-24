@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A folder (Spam or a rule's folder): its conversations, with the same search bar and results as the inbox. -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/folder_coordinator"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <org.fossify.commons.views.MySearchMenu
+        android:id="@+id/folder_menu"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <RelativeLayout
+        android:id="@+id/folder_holder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/no_conversations_placeholder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="@dimen/bigger_margin"
+            android:alpha="0.8"
+            android:gravity="center"
+            android:paddingLeft="@dimen/activity_margin"
+            android:paddingRight="@dimen/activity_margin"
+            android:text="@string/no_messages_in_folder"
+            android:textSize="@dimen/bigger_text_size"
+            android:textStyle="italic"
+            android:visibility="gone" />
+
+        <com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
+            android:id="@+id/conversations_fastscroller"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <org.fossify.commons.views.MyRecyclerView
+                android:id="@+id/conversations_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:layoutAnimation="@anim/layout_animation"
+                android:overScrollMode="ifContentScrolls"
+                android:scrollbars="none"
+                app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
+
+        </com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller>
+
+        <include
+            android:id="@+id/search_holder"
+            layout="@layout/search_results" />
+    </RelativeLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
