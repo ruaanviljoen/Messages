@@ -1,9 +1,7 @@
 package org.fossify.messages.activities
 
 import android.os.Bundle
-import org.fossify.commons.extensions.beVisibleIf
-import org.fossify.commons.extensions.getProperPrimaryColor
-import org.fossify.commons.extensions.underlineText
+import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.updateTextColors
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
@@ -15,10 +13,14 @@ import org.fossify.messages.dialogs.FilterRuleDialog
 import org.fossify.messages.dialogs.FilterRunDialog
 import org.fossify.messages.helpers.filterRulesDB
 import org.fossify.messages.helpers.getFolderNames
+import org.fossify.messages.helpers.getSpamRule
 import org.fossify.messages.helpers.markFiltersChanged
 import org.fossify.messages.models.FilterRule
 
-/** The filter rules, which run after Spam in the order shown. It reuses the layout of the keyword list. */
+/**
+ * The filter rules in the order they run: Spam pinned first, then the user's own. It reuses the layout of the keyword
+ * list.
+ */
 class FilterRulesActivity : SimpleActivity() {
     private val binding by viewBinding(ActivityManageBlockedKeywordsBinding::inflate)
 
@@ -36,13 +38,9 @@ class FilterRulesActivity : SimpleActivity() {
         )
         updateTextColors(binding.manageBlockedKeywordsWrapper)
 
-        binding.manageBlockedKeywordsPlaceholder.text = getString(R.string.no_filter_rules)
-        binding.manageBlockedKeywordsPlaceholder2.apply {
-            text = getString(R.string.add_filter_rule)
-            underlineText()
-            setTextColor(getProperPrimaryColor())
-            setOnClickListener { editRule() }
-        }
+        // the list always holds the Spam rule, so the reused layout's empty-list hint is replaced by one in the list
+        binding.manageBlockedKeywordsPlaceholder.beGone()
+        binding.manageBlockedKeywordsPlaceholder2.beGone()
         loadRules()
     }
 
@@ -69,8 +67,9 @@ class FilterRulesActivity : SimpleActivity() {
 
     private fun loadRules() {
         ensureBackgroundThread {
-            // the Spam rule is pinned and edited from the settings
-            val rules = ArrayList(filterRulesDB.getRules().filterNot { it.isSpam })
+            // getSpamRule creates the Spam rule if it does not exist yet; getRules lists it first
+            getSpamRule()
+            val rules = ArrayList(filterRulesDB.getRules())
             val folderNames = getFolderNames()
             runOnUiThread {
                 (binding.manageBlockedKeywordsList.adapter as? FilterRulesAdapter)?.detach()
@@ -79,10 +78,9 @@ class FilterRulesActivity : SimpleActivity() {
                     rules = rules,
                     folderNames = folderNames,
                     recyclerView = binding.manageBlockedKeywordsList,
-                    onReordered = { saveOrder(it) }
+                    onReordered = { saveOrder(it) },
+                    onAddRule = { editRule() }
                 ) { editRule(it as FilterRule) }
-                binding.manageBlockedKeywordsPlaceholder.beVisibleIf(rules.isEmpty())
-                binding.manageBlockedKeywordsPlaceholder2.beVisibleIf(rules.isEmpty())
             }
         }
     }

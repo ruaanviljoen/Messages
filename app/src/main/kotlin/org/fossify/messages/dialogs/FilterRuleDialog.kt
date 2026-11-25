@@ -58,6 +58,7 @@ class FilterRuleDialog(
         binding.apply {
             filterRuleSender.setText(rule?.sender)
             filterRuleKeywords.setText(rule?.keywords)
+            filterRuleExempt.setText(rule?.exemptSenders)
             filterRuleApplyToContacts.isChecked = rule?.applyToContacts ?: true
             filterRuleNotify.isChecked = rule?.notify == true
             // Spam never notifies
@@ -70,6 +71,11 @@ class FilterRuleDialog(
                 }
             }
             filterRuleSenderHint.addContactPicker(activity) { filterRuleSender.setText(it) }
+            // a chosen contact's number is added as a new line
+            filterRuleExemptHint.addContactPicker(activity) { number ->
+                val text = filterRuleExempt.value.trimEnd()
+                filterRuleExempt.setText(if (text.isEmpty()) number else "$text\n$number")
+            }
         }
         showAction()
 
@@ -204,7 +210,9 @@ class FilterRuleDialog(
                     action = if (archives) SPAM_ACTION_ARCHIVE else SPAM_ACTION_MOVE,
                     isSpam = isSpam,
                     applyToContacts = binding.filterRuleApplyToContacts.isChecked,
-                    deleteAfterDays = if (archives) 0 else deleteAfterDays
+                    deleteAfterDays = if (archives) 0 else deleteAfterDays,
+                    exemptSenders = binding.filterRuleExempt.value.split('\n', ',').map { it.trim() }
+                        .filter { it.isNotEmpty() }.joinToString("\n")
                 )
             )
             activity.markFiltersChanged()

@@ -40,13 +40,18 @@ fun ruleMatches(sender: String, keywords: List<String>, address: String, body: S
 private val spamRuleLock = Any()
 
 /**
- * The Spam rule, created from the Spam settings the first time it is needed. Locked, so that messages arriving at the
- * same moment cannot create it twice. Run it off the main thread.
+ * The Spam rule, created from the Spam settings the first time it is needed. The numbers once kept in the separate
+ * "Numbers never treated as spam" setting move into it. Locked, so that messages arriving at the same moment cannot
+ * create it twice. Run it off the main thread.
  */
 fun Context.getSpamRule(): FilterRule = synchronized(spamRuleLock) {
-    filterRulesDB.getSpamRule()?.let { return it }
+    val oldExemptions = config.spamExemptNumbers
+    val stored = filterRulesDB.getSpamRule()
+    if (stored != null && oldExemptions.isEmpty()) {
+        return stored
+    }
 
-    val rule = FilterRule(
+    val rule = stored ?: FilterRule(
         position = -1,
         folderId = SPAM_FOLDER_ID,
         sender = "",
@@ -55,7 +60,11 @@ fun Context.getSpamRule(): FilterRule = synchronized(spamRuleLock) {
         isSpam = true,
         applyToContacts = config.filterSavedContacts
     )
-    return rule.copy(id = filterRulesDB.insertRule(rule))
+    val exempt = (rule.exemptList() + oldExemptions.sorted()).distinct().joinToString("\n")
+    val saved = rule.copy(exemptSenders = exempt)
+    val id = filterRulesDB.insertRule(saved)
+    config.spamExemptNumbers = emptySet()
+    return saved.copy(id = id)
 }
 
 /**
@@ -69,7 +78,9 @@ class MessageFilter(private val context: Context) {
         context.filterRulesDB.getRules()
     }
     private val ruleKeywords = rules.associate { it.id to it.keywordList() }
-    private val spamExemptNumbers = context.config.spamExemptNumbers.map { it.toSenderKey() }.toSet()
+    private val ruleExemptions = rules.associate { rule ->
+        rule.id to rule.exemptList().mapTo(HashSet()) { it.toSenderKey() }
+    }
 
     // where the phone cannot archive, the Spam rule moves to Spam instead
     private val archiveAvailable = context.config.isArchiveAvailable
@@ -91,7 +102,7 @@ class MessageFilter(private val context: Context) {
 
     private fun applies(rule: FilterRule, address: String, body: String) =
         ruleMatches(rule.sender, ruleKeywords[rule.id].orEmpty(), address, body) &&
-            !(rule.isSpam && address.toSenderKey() in spamExemptNumbers) &&
+            address.toSenderKey() !in ruleExemptions[rule.id].orEmpty() &&
             (rule.applyToContacts || !isSavedContact(address))
 
     private fun isSavedContact(address: String) = savedContacts.getOrPut(address) {
