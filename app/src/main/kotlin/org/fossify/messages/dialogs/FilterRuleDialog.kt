@@ -6,6 +6,7 @@ import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.beGoneIf
 import org.fossify.commons.extensions.getAlertDialogBuilder
+import org.fossify.commons.extensions.onTextChangeListener
 import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.showKeyboard
 import org.fossify.commons.extensions.toast
@@ -72,6 +73,9 @@ class FilterRuleDialog(
                 }
             }
             filterRuleSenderHint.addContactPicker(activity) { filterRuleSender.setText(it) }
+            // a rule that names its sender always applies to it, so the box only matters without one
+            filterRuleIgnoreContacts.beGoneIf(rule?.sender?.isNotBlank() == true)
+            filterRuleSender.onTextChangeListener { filterRuleIgnoreContacts.beGoneIf(it.isNotBlank()) }
             // a chosen contact's number is added as a new line
             filterRuleExemptHint.addContactPicker(activity) { number ->
                 val text = filterRuleExempt.value.trimEnd()

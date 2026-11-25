@@ -71,7 +71,13 @@ fun Context.getSpamRule(): FilterRule = synchronized(spamRuleLock) {
  * The filter rules, read once: the Spam rule first, then the others in order; the first rule that matches decides
  * what happens. Reuse one instance when checking many messages. Create it off the main thread.
  */
-class MessageFilter(private val context: Context) {
+class MessageFilter(
+    private val context: Context,
+    // whether an address belongs to a saved contact; tests can pass their own
+    private val lookUpContact: (String) -> Boolean = { address ->
+        SimpleContactsHelper(context).existsSync(address) == ContactLookupResult.Found
+    }
+) {
     // getSpamRule creates the Spam rule if it does not exist yet
     val rules = run {
         context.getSpamRule()
@@ -106,9 +112,7 @@ class MessageFilter(private val context: Context) {
             // a rule that names its sender is meant for that sender, even a saved contact
             (rule.applyToContacts || rule.sender.isNotBlank() || !isSavedContact(address))
 
-    private fun isSavedContact(address: String) = savedContacts.getOrPut(address) {
-        SimpleContactsHelper(context).existsSync(address) == ContactLookupResult.Found
-    }
+    private fun isSavedContact(address: String) = savedContacts.getOrPut(address) { lookUpContact(address) }
 }
 
 /**
