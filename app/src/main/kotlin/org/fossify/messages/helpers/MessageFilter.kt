@@ -103,7 +103,8 @@ class MessageFilter(private val context: Context) {
     private fun applies(rule: FilterRule, address: String, body: String) =
         ruleMatches(rule.sender, ruleKeywords[rule.id].orEmpty(), address, body) &&
             address.toSenderKey() !in ruleExemptions[rule.id].orEmpty() &&
-            (rule.applyToContacts || !isSavedContact(address))
+            // a rule that names its sender is meant for that sender, even a saved contact
+            (rule.applyToContacts || rule.sender.isNotBlank() || !isSavedContact(address))
 
     private fun isSavedContact(address: String) = savedContacts.getOrPut(address) {
         SimpleContactsHelper(context).existsSync(address) == ContactLookupResult.Found
