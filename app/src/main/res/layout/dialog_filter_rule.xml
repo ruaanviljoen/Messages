@@ -106,11 +106,11 @@
         </org.fossify.commons.views.MyTextInputLayout>
 
         <org.fossify.commons.views.MyAppCompatCheckbox
-            android:id="@+id/filter_rule_apply_to_contacts"
+            android:id="@+id/filter_rule_ignore_contacts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="@dimen/activity_margin"
-            android:text="@string/apply_to_saved_contacts" />
+            android:text="@string/ignore_saved_contacts" />
 
         <org.fossify.commons.views.MyAppCompatCheckbox
             android:id="@+id/filter_rule_notify"

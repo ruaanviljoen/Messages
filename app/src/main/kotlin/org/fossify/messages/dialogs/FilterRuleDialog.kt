@@ -59,7 +59,8 @@ class FilterRuleDialog(
             filterRuleSender.setText(rule?.sender)
             filterRuleKeywords.setText(rule?.keywords)
             filterRuleExempt.setText(rule?.exemptSenders)
-            filterRuleApplyToContacts.isChecked = rule?.applyToContacts ?: true
+            // shown the other way round from how it is stored; a new rule leaves saved contacts alone
+            filterRuleIgnoreContacts.isChecked = rule?.let { !it.applyToContacts } ?: true
             filterRuleNotify.isChecked = rule?.notify == true
             // Spam never notifies
             filterRuleNotify.beGoneIf(isSpam)
@@ -209,7 +210,7 @@ class FilterRuleDialog(
                     notify = !isSpam && binding.filterRuleNotify.isChecked,
                     action = if (archives) SPAM_ACTION_ARCHIVE else SPAM_ACTION_MOVE,
                     isSpam = isSpam,
-                    applyToContacts = binding.filterRuleApplyToContacts.isChecked,
+                    applyToContacts = !binding.filterRuleIgnoreContacts.isChecked,
                     deleteAfterDays = if (archives) 0 else deleteAfterDays,
                     exemptSenders = binding.filterRuleExempt.value.split('\n', ',').map { it.trim() }
                         .filter { it.isNotEmpty() }.joinToString("\n")

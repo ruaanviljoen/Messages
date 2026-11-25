@@ -9,8 +9,9 @@ import org.fossify.messages.helpers.SPAM_ACTION_MOVE
 /**
  * A filter rule: messages from [sender] that contain any of the [keywords] (one per line) are moved to the folder
  * [folderId]. The Spam rule can archive their conversations instead, when [action] says so. Either part may be empty,
- * but not both. Messages from saved contacts are left alone unless [applyToContacts], which is on by default; the
- * Spam rule starts with it off, so that saved contacts are not treated as spam. Messages the rule files are deleted
+ * but not both. Messages from saved contacts are left alone unless [applyToContacts]. The rule dialog shows it the
+ * other way round, as "Ignore saved contacts", ticked for new rules; rules made before that apply to contacts unless
+ * the user changed it, and the Spam rule starts out ignoring them. Messages the rule files are deleted
  * once they are older than [deleteAfterDays], unless it is 0; see [org.fossify.messages.helpers.deleteExpiredMessages]
  * for when old messages are deleted without asking. Messages from [exemptSenders] are always left alone.
  *
