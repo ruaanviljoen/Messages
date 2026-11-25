@@ -6,10 +6,11 @@ Notes from testing the debug build on a Samsung Galaxy S26.
 
 Each feature is developed on its own branch. Before work starts on another feature or issue, every branch listed here gets a decision: merge it into the work branch, or drop it. Then it is removed from this list.
 
-- `feat/spam-in-rules`: the Spam rule moves into the Filter rules list, pinned first and not deletable; "Never apply to" numbers become a field on every rule, and the existing Spam exemptions move into the Spam rule. Settings keeps "Filter rules" and "Run filters on existing messages". Decision: pending.
+- `feat/ignore-saved-contacts`: the rule checkbox becomes "Ignore saved contacts" (the old "Apply for saved contacts" inverted), ticked by default for new rules. Existing rules keep their behaviour. Decision: pending.
 
 ## Fixed, waiting for testing on the phone
 
+- The Spam rule is in the Filter rules list, pinned first and not deletable. Every rule has "Never apply to" (numbers or names); the old Spam exemptions moved into the Spam rule. Settings > Filters has Filter rules and Run filters on existing messages. A hint under Spam explains rules until the first one is added.
 - Only the "Unread" filter chip is left above the inbox; with it off, every conversation shows.
 - A folder's screen has the same search bar and results as the inbox, limited to that folder. Both use one shared search component.
 - Each rule has "Delete after" (never, 2 days, 1 week, 2 weeks, 1 month). Running the filters shows how many messages it would delete permanently, including how many are in the inbox, and offers "Apply, don't delete". After any change to the rules, the background check (at most every 6 hours, on app start or when a message arrives) deletes only messages that become too old after that change; older ones need a confirmed run. Messages restored to the inbox are never deleted.
@@ -49,6 +50,10 @@ Build order: rules engine and storage; folders in the main menu and folder views
 ## Proposal: folders as filter chips above the inbox
 
 A row of filter chips under the search bar: All (default), Unread, then one chip per folder that has a rule, scrolling sideways when full. Tapping a folder shows its conversations in the same list, and the search bar then searches that folder. A dot marks folders with unread messages. Spam stays in the menu. Mockups and the alternatives (tabs with counts, three folders and More) are in the design page shared in the chat. Not decided yet.
+
+## Idea: one exclusions section in the rule dialog
+
+"Never apply to" (numbers) and "Ignore saved contacts" both say whom a rule leaves alone. They might read better as one section, for example "Exclude: saved contacts, and these numbers". Not decided.
 
 ## Later: folder and notification details
 
